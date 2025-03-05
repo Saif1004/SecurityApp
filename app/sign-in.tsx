@@ -1,10 +1,13 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
-import { ScrollView, View, Image, Text } from 'react-native';
+import {ScrollView, View, Image, Text, TouchableOpacity} from 'react-native';
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
+import google from '../assets/images/google.png';
+
 
 const SignIn = () => {
+    const handleLogin = () => {};
     const router = useRouter();
 
     return (
@@ -12,15 +15,25 @@ const SignIn = () => {
             {/* Logo */}
             <Image
                 source={AegisShield}
-                style={tw`w-60 h-60`} // This is 160x160 (double the logo size you wanted)
+                style={tw`w-60 h-60`}
                 resizeMode="contain"
             />
 
-            {/* Text directly under image */}
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
                 Aegis Security Systems
             </Text>
 
+            <TouchableOpacity
+                onPress={handleLogin}
+                style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
+                    <Image source ={google}
+                           style={tw`w-5 h-5 mr-3`}
+                           resizeMode="contain"
+                    />
+                    <Text style={tw`text-lg font-rubik text-black-300`}>
+                        Continue with Google
+                    </Text>
+            </TouchableOpacity>
             {/* Spacer to push button to the bottom */}
             <View style={tw`flex-1`} />
 
