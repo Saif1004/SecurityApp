@@ -1,13 +1,22 @@
 import React from 'react';
 import { useRouter } from 'expo-router';
-import {ScrollView, View, Image, Text, TouchableOpacity} from 'react-native';
+import {ScrollView, View, Image, Text, TouchableOpacity, Alert} from 'react-native';
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import google from '../assets/images/google.png';
+import {login} from "@/lib/appwrite";
 
 
 const SignIn = () => {
-    const handleLogin = () => {};
+    const handleLogin = async () => {
+        const result = await login();
+        if (result) {
+            console.log('Successfully logged in');
+        }
+        else{
+            Alert.alert('Error', 'Failed to log in');
+        }
+    };
     const router = useRouter();
 
     return (
