@@ -9,23 +9,18 @@ export default function Index() {
 
     return (
         <ScrollView contentContainerStyle={tw`flex-1 justify-center items-center bg-white px-4`}>
-            {/* Logo */}
             <Image
                 source={AegisShield}
                 style={tw`w-60 h-60`}
                 resizeMode="contain"
             />
 
-
-            {/* Text directly under the image */}
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
                 Welcome to Aegis Security Systems
             </Text>
 
-            {/* Spacer to push button to the bottom */}
             <View style={tw`flex-1`} />
 
-            {/* Go to Sign In Button */}
             <View style={tw`w-full p-4`}>
                 <Text
                     onPress={() => router.push('/sign-in')}
