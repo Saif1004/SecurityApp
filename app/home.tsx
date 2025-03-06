@@ -1,7 +1,7 @@
 import {ScrollView, View, Text, StatusBar, Image} from 'react-native';
 import React, {useEffect, useState} from 'react';
 import tw from 'twrnc';
-import AegisShield from '../../../assets/images/Aegis-Shield.png';
+import AegisShield from '../assets/images/Aegis-Shield.png';
 import { useRouter } from 'expo-router';
 
 

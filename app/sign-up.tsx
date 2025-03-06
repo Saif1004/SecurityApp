@@ -1,11 +1,11 @@
-import {View, Text} from 'react-native'
-import React from 'react'
+import React from 'react';
+import { ScrollView, Text } from 'react-native';
+import tw from 'twrnc';
 
-const SignUp = () => {
+export default function SignUp() {
     return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ScrollView contentContainerStyle={tw`flex-1 justify-center items-center`}>
             <Text>Sign Up Screen</Text>
-        </View>
+        </ScrollView>
     );
 }
-export default SignUp

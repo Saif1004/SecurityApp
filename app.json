@@ -5,9 +5,10 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "SecuritySystem",
+    "scheme": "SecurityApp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "entryPoint": "./node_modules/expo-router/entry.js",
     "ios": {
       "supportsTablet": true
     },
