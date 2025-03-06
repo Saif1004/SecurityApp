@@ -1,17 +1,20 @@
 import React from 'react';
-import { useRouter } from 'expo-router';
+import {Redirect, useRouter} from 'expo-router';
 import {ScrollView, View, Image, Text, TouchableOpacity, Alert} from 'react-native';
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import google from '../assets/images/google.png';
 import {login} from "@/lib/appwrite";
+import {useGlobalContext} from "@/lib/global-provider";
 
 
 const SignIn = () => {
+    const{ refetch, loading, isLogged}= useGlobalContext()
+
     const handleLogin = async () => {
         const result = await login();
         if (result) {
-            console.log('Successfully logged in');
+            router.push('//(root)/(tabs)/home');
         }
         else{
             Alert.alert('Error', 'Failed to log in');
@@ -31,18 +34,16 @@ const SignIn = () => {
                 Aegis Security Systems
             </Text>
 
-            hi saif
-
             <TouchableOpacity
                 onPress={handleLogin}
                 style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
-                    <Image source ={google}
-                           style={tw`w-5 h-5 mr-3`}
-                           resizeMode="contain"
-                    />
-                    <Text style={tw`text-lg font-rubik text-black-300`}>
-                        Continue with Google
-                    </Text>
+                <Image source ={google}
+                       style={tw`w-5 h-5 mr-3`}
+                       resizeMode="contain"
+                />
+                <Text style={tw`text-lg font-rubik text-black-300`}>
+                    Continue with Google
+                </Text>
             </TouchableOpacity>
             <View style={tw`flex-1`} />
 
