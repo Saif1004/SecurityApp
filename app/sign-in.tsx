@@ -22,8 +22,6 @@ const SignIn = () => {
                 Aegis Security Systems
             </Text>
 
-            hi saif
-
             <TouchableOpacity
                 onPress={handleLogin}
                 style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
