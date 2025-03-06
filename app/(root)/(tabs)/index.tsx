@@ -18,6 +18,7 @@ export default function Index() {
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
                 Welcome to Aegis Security Systems
             </Text>
+            
 
             <View style={tw`flex-1`} />
 
