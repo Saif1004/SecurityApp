@@ -3,7 +3,7 @@ import * as Linking from 'expo-linking';
 import {openAuthSessionAsync} from "expo-web-browser";
 
 export const config = {
-    platform:'.com.jsm.AegisSystems',
+    platform:'com.jsm.SecurityApp',
     endpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
     projectID: process.env.EXPO_PUBLIC_APPWRITE_PROJECT_ID,
 }
@@ -18,61 +18,29 @@ client
 export const avatar = new Avatars(client);
 export const account = new Account(client);
 
-export async function login() {
-    try {
+export async function login(){
+    try{
         const redirectUri = Linking.createURL('/');
-        console.log("Generated Redirect URI:", redirectUri);
+        const response = await account.createOAuth2Token(OAuthProvider.Google, redirectUri);
 
-        // Step 1: Start OAuth Login
-        const response = account.createOAuth2Token(
-            OAuthProvider.Google,
-            redirectUri
-        );
-        console.log("OAuth Response:", response);
+        if(!response) throw new Error("Failed to login");
 
-        if (!response) {
-            console.error("Error: OAuth response is null");
-            throw new Error("Failed to login");
-        }
+        const browserResult = await openAuthSessionAsync(response.toString(), redirectUri)
+        if(browserResult.type != 'success') throw new Error("Failed to login");
 
-        // Step 2: Open authentication session
-        const browserResult = await openAuthSessionAsync(response.toString(), redirectUri);
-        console.log("Browser Result:", JSON.stringify(browserResult, null, 2));
-
-        if (browserResult.type !== 'success') {
-            console.error("Error: OAuth login failed in browser");
-            console.log("Generated Redirect URI:", redirectUri);
-            throw new Error("Failed to login");
-        }
-
-        // Step 3: Parse returned URL
         const url = new URL(browserResult.url);
-        console.log("Parsed URL:", url.toString());
 
         const secret = url.searchParams.get("secret")?.toString();
         const userId = url.searchParams.get("userId")?.toString();
 
-        console.log("Extracted userId:", userId);
-        console.log("Extracted secret:", secret);
+        if (!userId || !secret) throw new Error("Failed to login");
 
-        if (!userId || !secret) {
-            console.error("Error: Missing userId or secret");
-            throw new Error("Failed to login");
-        }
-
-        // Step 4: Create session
         const session = await account.createSession(userId, secret);
-        console.log("Session Created:", session);
-
-        if (!session) {
-            console.error("Error: Failed to create a session");
-            throw new Error("Failed to create a session");
-        }
-
+        if(!session) throw new Error("Failed to create a session");
         return true;
 
-    } catch (error) {
-        console.error("Login Error:", error);
+    } catch(error){
+        console.error(error);
         return false;
     }
 }
@@ -86,20 +54,18 @@ export async function logout(){
     }
 }
 
-export async function getUser() {
+export async function getUser(){
     try {
-        const result = await account.get();
-        if (result.$id) {
-            const userAvatar = avatar.getInitials(result.name);
-
+        const response = await account.get();
+        if(response.$id) {
+            const userAvatar = avatar.getInitials(response.name);
             return {
-                ...result,
+                ...response,
                 avatar: userAvatar.toString(),
-            };
+            }
         }
-        return null;
-    } catch (error) {
-        console.log(error);
+    } catch(error){
+        console.error(error);
         return null;
     }
 }

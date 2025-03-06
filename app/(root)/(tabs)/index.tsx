@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { ScrollView, View, Image, Text } from 'react-native';
 import tw from 'twrnc';
 import AegisShield from '@/assets/images/Aegis-Shield.png';
-import 'expo-dev-client';
 
 export default function Index() {
     const router = useRouter();
