@@ -33,6 +33,15 @@ const SignIn = () => {
                         Continue with Google
                     </Text>
             </TouchableOpacity>
+            <View style={tw`w-full p-4`}>
+                <Text
+                    onPress={() => router.push('/home')}
+                    style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
+                >
+                    Go to home
+                </Text>
+
+            </View>
             <View style={tw`flex-1`} />
 
             <View style={tw`w-full p-4`}>
@@ -42,6 +51,7 @@ const SignIn = () => {
                 >
                     Go to Sign Up
                 </Text>
+
             </View>
         </ScrollView>
     );
