@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import { ScrollView, View, Image, Text } from 'react-native';
 import tw from 'twrnc';
 import AegisShield from '@/assets/images/Aegis-Shield.png';
-import 'expo-dev-client';
 
 export default function Index() {
     const router = useRouter();
@@ -15,10 +14,14 @@ export default function Index() {
                 style={tw`w-60 h-60`}
                 resizeMode="contain"
             />
+
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
                 Welcome to Aegis Security Systems
             </Text>
+            
+
             <View style={tw`flex-1`} />
+
             <View style={tw`w-full p-4`}>
                 <Text
                     onPress={() => router.push('/sign-in')}
