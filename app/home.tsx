@@ -27,7 +27,7 @@ function HomeScreen() {
 
   return (
     <ScrollView
-      contentContainerStyle={tw`flex-1 justify-center items-center bg-gray-200 px-4`}
+      contentContainerStyle={tw`flex-1 justify-center items-center bg-gray-50 px-4`}
     >
       <View style={tw`flex-1 items-center`}>
         <Image
@@ -85,7 +85,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Tab.Navigator
-        initialRouteName={alertName}
+        initialRouteName={homeName}
         screenOptions={{
           tabBarActiveTintColor: 'blue',
           tabBarInactiveTintColor: 'gray',
@@ -134,7 +134,7 @@ export default function App() {
           options={{
             tabBarIcon: ({ focused, color, size }) => (
               <Ionicons
-                name={focused ? 'videocamera' : 'viceocamera-outline'}
+                name={focused ? 'videocam' : 'viceocam-outline'}
                 size={size}
                 color={color}
               />
