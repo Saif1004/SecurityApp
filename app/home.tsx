@@ -12,16 +12,15 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AlertScreen from './nav-screens/AlertScreen';
 import LiveViewScreen from './nav-screens/AlertScreen';
 
-const name = 'Harpreet';
-const time2 = '16:00';
-var iconHeight = 26;
-var iconWidth = 26;
-const [time, setTime] = useState(new Date());
-const alertName = 'Alert';
-const liveViewName = 'Live View';
 const Tab = createBottomTabNavigator();
 
-export default function Home() {
+function HomeScreen() {
+  const name = 'Harpreet';
+  const time2 = '16:00';
+  var iconHeight = 26;
+  var iconWidth = 26;
+  const [time, setTime] = useState(new Date());
+
   useEffect(() => {
     setInterval(() => setTime(new Date()), 1000);
   }, []);
@@ -50,7 +49,7 @@ export default function Home() {
       <View
         style={{
           width: '85%',
-          height: '50%',
+          height: '25%',
           display: 'flex',
           flexDirection: 'row',
           flexWrap: 'wrap',
@@ -74,22 +73,59 @@ export default function Home() {
           Backyard
         </Text>
       </View>
-
-      <NavigationContainer>
-        <Tab.Navigator
-          initialRouteName={alertName}
-          screenOptions={({ route }) => ({
-            tabBarIcon: ({ focused, color, size }) => {
-              let iconName;
-              let rn = route.name;
-
-              if (rn === homeName) {
-                iconName = focused ? 'home' : 'home-outline';
-              }
-            },
-          })}
-        ></Tab.Navigator>
-      </NavigationContainer>
     </ScrollView>
+  );
+}
+
+export default function App() {
+  const alertName = 'Alert';
+  const liveViewName = 'Live View';
+
+  return (
+    <NavigationContainer>
+      <Tab.Navigator
+        initialRouteName={alertName}
+        screenOptions={{
+          tabBarActiveTintColor:'blue',
+          tabBarInactiveTintColor: 'gray',
+          tabBarStyle: {
+            backgroundColor: 'white',
+            paddingBottom: 5,
+            paddingTop: 5,
+          },
+          tabBarLabelStyle: {
+            fontSize:12,
+          },
+        }}
+      >
+        <Tab.Screen 
+          name={alertName} 
+          component={AlertScreen} 
+          options={{
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons
+                name = {focused ? 'alert' : 'alert-outline'}
+                size={size}
+                color={color}
+              />
+            ),
+          }}
+        />
+        
+        <Tab.Screen 
+          name={alertName} 
+          component={LiveViewScreen} 
+          options={{
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons
+                name = {focused ? 'videocamera' : 'viceocamera-outline'}
+                size={size}
+                color={color}
+              />
+            ),
+          }}
+        />
+      </Tab.Navigator>
+    </NavigationContainer>
   );
 }
