@@ -4,25 +4,27 @@ import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import Icon from 'react-native-ico-material-design';
+import Ionicons from 'react-native-vector-icons/Ionicons';
+import { NavigationContainer } from '@react-navigation/native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
-const Home = () => {
-  const name = 'Harpreet';
-  const time2 = '16:00';
-  var iconHeight = 26;
-  var iconWidth = 26;
-  const [time, setTime] = useState(new Date());
-  const [screenText, setScreenText] = useState('press a button')
+//Screens
+import AlertScreen from './nav-screens/AlertScreen';
+import LiveViewScreen from './nav-screens/AlertScreen';
 
+const name = 'Harpreet';
+const time2 = '16:00';
+var iconHeight = 26;
+var iconWidth = 26;
+const [time, setTime] = useState(new Date());
+const alertName = 'Alert';
+const liveViewName = 'Live View';
+const Tab = createBottomTabNavigator();
+
+export default function Home() {
   useEffect(() => {
     setInterval(() => setTime(new Date()), 1000);
   }, []);
-
-  const changeText = (text) => {
-    console.log(text + 'has been pressed');
-    setScreenText(text),
-  };
-
 
   return (
     <ScrollView
@@ -73,23 +75,21 @@ const Home = () => {
         </Text>
       </View>
 
-      <View style={{ position: 'absolute', alignItems: 'center', bottom: 20 }}>
-        <View
-          style={{
-            flexDirection: 'row',
-            backgroundColor: 'eeeeee',
-            width: '90%',
-            justifyContent: 'space-evenly',
-            borderRadius: 40,
-          }}
-        >
-          <Pressable
-            onPress={() => this.changeText('Favourites')}
-            style={{ padding: 14 }}
-          ></Pressable>
-        </View>
-      </View>
+      <NavigationContainer>
+        <Tab.Navigator
+          initialRouteName={alertName}
+          screenOptions={({ route }) => ({
+            tabBarIcon: ({ focused, color, size }) => {
+              let iconName;
+              let rn = route.name;
+
+              if (rn === homeName) {
+                iconName = focused ? 'home' : 'home-outline';
+              }
+            },
+          })}
+        ></Tab.Navigator>
+      </NavigationContainer>
     </ScrollView>
   );
-};
-export default Home;
+}
