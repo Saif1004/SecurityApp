@@ -49,7 +49,7 @@ function HomeScreen() {
       <View
         style={{
           width: '85%',
-          height: '25%',
+          height: '40%',
           display: 'flex',
           flexDirection: 'row',
           flexWrap: 'wrap',
@@ -78,6 +78,7 @@ function HomeScreen() {
 }
 
 export default function App() {
+  const homeName = 'Home';
   const alertName = 'Alert';
   const liveViewName = 'Live View';
 
@@ -86,7 +87,7 @@ export default function App() {
       <Tab.Navigator
         initialRouteName={alertName}
         screenOptions={{
-          tabBarActiveTintColor:'blue',
+          tabBarActiveTintColor: 'blue',
           tabBarInactiveTintColor: 'gray',
           tabBarStyle: {
             backgroundColor: 'white',
@@ -94,31 +95,46 @@ export default function App() {
             paddingTop: 5,
           },
           tabBarLabelStyle: {
-            fontSize:12,
+            fontSize: 12,
           },
+          headerShown: false,
         }}
       >
-        <Tab.Screen 
-          name={alertName} 
-          component={AlertScreen} 
+        <Tab.Screen
+          name={homeName}
+          component={HomeScreen}
           options={{
             tabBarIcon: ({ focused, color, size }) => (
               <Ionicons
-                name = {focused ? 'alert' : 'alert-outline'}
+                name={focused ? 'home' : 'home-outline'}
                 size={size}
                 color={color}
               />
             ),
           }}
         />
-        
-        <Tab.Screen 
-          name={alertName} 
-          component={LiveViewScreen} 
+
+        <Tab.Screen
+          name={alertName}
+          component={AlertScreen}
           options={{
             tabBarIcon: ({ focused, color, size }) => (
               <Ionicons
-                name = {focused ? 'videocamera' : 'viceocamera-outline'}
+                name={focused ? 'alert' : 'alert-outline'}
+                size={size}
+                color={color}
+              />
+            ),
+          }}
+        />
+
+        <Tab.Screen
+          name={liveViewName}
+          component={LiveViewScreen}
+          options={{
+            tabBarIcon: ({ focused, color, size }) => (
+              <Ionicons
+                name={focused ? 'videocamera' : 'viceocamera-outline'}
                 size={size}
                 color={color}
               />
