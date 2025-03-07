@@ -1,5 +1,5 @@
 import { ScrollView, View, Text, Image, Pressable } from 'react-native';
-import React, { useEffect, useState } from 'react';
+import * as React from 'react';
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import { useRouter } from 'expo-router';
@@ -12,7 +12,7 @@ export default function AlertScreen({ navigation }) {
         onPress={() => navigation.navigate('Home')}
         style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
       >
-        Go to home
+        this is alert
       </Text>
     </View>
   );

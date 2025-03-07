@@ -12,7 +12,7 @@ export default function LiveViewScreen({ navigation }) {
         onPress={() => navigation.navigate('Home')}
         style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
       >
-        Go to home
+        this is live view
       </Text>
     </View>
   );
