@@ -1,25 +1,28 @@
-import {
-  ScrollView,
-  View,
-  Text,
-  StatusBar,
-  Image,
-  Pressable,
-} from 'react-native';
+import { ScrollView, View, Text, Image, Pressable } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import Icon from 'react-native-ico-material-design';
 
 const Home = () => {
   const name = 'Harpreet';
   const time2 = '16:00';
+  var iconHeight = 26;
+  var iconWidth = 26;
   const [time, setTime] = useState(new Date());
+  const [screenText, setScreenText] = useState('press a button')
 
   useEffect(() => {
     setInterval(() => setTime(new Date()), 1000);
   }, []);
+
+  const changeText = (text) => {
+    console.log(text + 'has been pressed');
+    setScreenText(text),
+  };
+
 
   return (
     <ScrollView
@@ -41,27 +44,52 @@ const Home = () => {
           The kids arrived home at {time2}h
         </Text>
       </View>
-      <Icon name="add-plus-button" height="40" width="40" />
 
-            <View style={{
-                width: '85%', 
-                height: '50%', 
-                display: 'flex', 
-                flexDirection: 'row',
-                flexWrap: 'wrap', 
-                justifyContent: 'space-around', 
-                alignItems: 'flex-start',
-                rowGap: 20,
-                columnGap: 30,
-                marginBottom: 200}}>
+      <View
+        style={{
+          width: '85%',
+          height: '50%',
+          display: 'flex',
+          flexDirection: 'row',
+          flexWrap: 'wrap',
+          justifyContent: 'space-around',
+          alignItems: 'flex-start',
+          rowGap: 20,
+          columnGap: 30,
+          marginBottom: 200,
+        }}
+      >
+        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
+          Door Bell
+        </Text>
+        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
+          Main Bell
+        </Text>
+        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
+          Front Cam
+        </Text>
+        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
+          Backyard
+        </Text>
+      </View>
 
-                <Text style={tw `w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>Door Bell</Text>
-                <Text style={tw `w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>Main Bell</Text>
-                <Text style={tw `w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>Front Cam</Text>
-                <Text style={tw `w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>Backyard</Text>
-            </View>
-
-        </ScrollView>
-    );
-}
-export default Home
+      <View style={{ position: 'absolute', alignItems: 'center', bottom: 20 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            backgroundColor: 'eeeeee',
+            width: '90%',
+            justifyContent: 'space-evenly',
+            borderRadius: 40,
+          }}
+        >
+          <Pressable
+            onPress={() => this.changeText('Favourites')}
+            style={{ padding: 14 }}
+          ></Pressable>
+        </View>
+      </View>
+    </ScrollView>
+  );
+};
+export default Home;
