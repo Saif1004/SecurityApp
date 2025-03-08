@@ -10,9 +10,13 @@
     "newArchEnabled": true,
     "entryPoint": "./node_modules/expo-router/entry.js",
     "ios": {
+      "bundleIdentifier": "com.galaxies.firebase",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.galaxies.firebase",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
@@ -36,7 +40,12 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-build-properties"
+      "expo-build-properties",
+      {
+        "ios": {
+          "useFrameworks": "static"
+        }
+      }
     ],
     "experiments": {
       "typedRoutes": true
