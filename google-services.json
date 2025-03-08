@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "455327001497",
+    "project_id": "aegis-expo",
+    "storage_bucket": "aegis-expo.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:455327001497:android:35a6edb30e7f33e3604108",
+        "android_client_info": {
+          "package_name": "com.galaxies.firebase"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "455327001497-pp9dlddj2ihhst0l5lac57172uccktov.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCV1xmKpJ_ahMxsS8MHzBDstsyUm7kww6s"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "455327001497-pp9dlddj2ihhst0l5lac57172uccktov.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "455327001497-qpvk222bvv6m91fpp1nmdmln8hsu2ijd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.galaxies.firebase"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
