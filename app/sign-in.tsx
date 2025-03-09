@@ -1,22 +1,13 @@
 import React, {useState} from 'react';
 import { useRouter } from 'expo-router';
-import {
-    ScrollView,
-    View,
-    Image,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    KeyboardAvoidingView,
-    Button,
-    ActivityIndicator, TextInput
-} from 'react-native';
+import {ScrollView, View, Image, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Button, ActivityIndicator,
+    TextInput} from 'react-native';
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import google from '../assets/images/google.png';
 import {FirebaseError} from "@firebase/util";
-import firebase from "firebase/compat";
-import auth = firebase.auth;
+import { auth } from './firebase';
+import {signInWithEmailAndPassword} from "@firebase/auth";
 
 
 export default function SignIn  ()  {
@@ -26,23 +17,11 @@ export default function SignIn  ()  {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const signUp = async () => {
-        setLoading(true);
-        try {
-            await auth().createUserWithEmailAndPassword(email, password);
-            alert('Check your emails!');
-        } catch (e: any) {
-            const err = e as FirebaseError;
-            alert('Registration failed: ' + err.message);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const signIn = async () => {
         setLoading(true);
         try {
-            await auth().signInWithEmailAndPassword(email, password);
+            await signInWithEmailAndPassword(auth, email, password);
         } catch (e: any) {
             const err = e as FirebaseError;
             alert('Sign in failed: ' + err.message);
@@ -74,14 +53,6 @@ export default function SignIn  ()  {
                         Continue with Google
                     </Text>
             </TouchableOpacity>
-            <View style={tw`w-full p-4`}>
-                <Text
-                    onPress={() => router.push('/home')}
-                    style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
-                >
-                    Go to home
-                </Text>
-            </View>
             <View style={tw`flex-1`} />
 
             <View style={styles.container}>
@@ -106,7 +77,6 @@ export default function SignIn  ()  {
                     ) : (
                         <>
                             <Button onPress={signIn} title="Login" />
-                            <Button onPress={signUp} title="Create account" />
                         </>
                     )}
                 </KeyboardAvoidingView>
@@ -135,9 +105,10 @@ const styles = StyleSheet.create({
     input: {
         marginVertical: 4,
         height: 50,
+        width: 300,
         borderWidth: 1,
         borderRadius: 4,
-        padding: 10,
+        padding: 5,
         backgroundColor: '#fff'
     }
 });

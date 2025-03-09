@@ -1,18 +1,19 @@
-import { ScrollView, View, Text, Image, Pressable } from 'react-native';
+import { ScrollView, View, Text, Image, Button, Pressable } from 'react-native';
 import React, { useEffect, useState } from 'react';
 import tw from 'twrnc';
 import AegisShield from '../../assets/images/Aegis-Shield.png';
-import { useRouter } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import auth from '@react-native-firebase/auth';
+import {router} from "expo-router";
+import {signOut} from "@firebase/auth";
 
 export default function HomeScreen() {
-  const name = 'Harpreet';
-  const time2 = '16:00';
-  var iconHeight = 26;
-  var iconWidth = 26;
-  const [time, setTime] = useState(new Date());
+    const user = auth().currentUser;
+    const time2 = '16:00';
+    var iconHeight = 26;
+    var iconWidth = 26;
+    const [time, setTime] = useState(new Date());
 
-  useEffect(() => {
+    useEffect(() => {
     setInterval(() => setTime(new Date()), 1000);
   }, []);
 
@@ -26,7 +27,7 @@ export default function HomeScreen() {
           style={tw`w-10 h-10`}
           resizeMode="contain"
         />
-        <Text style={tw`text-black text-6x1 font-bold`}>Hello, {name}!</Text>
+        <Text style={tw`text-black text-6x1 font-bold`}>Hello, {user?.email}!</Text>
 
         <Text style={tw`items-center mt-2`}>{time.toLocaleString()}</Text>
 
@@ -64,6 +65,20 @@ export default function HomeScreen() {
           Backyard
         </Text>
       </View>
+        <View style={tw`flex-1`} />
+
+        <Button
+            title="Log Out"
+            onPress={async () => {
+                try {
+                    await auth().signOut();
+                    console.log("User signed out successfully!");
+                } catch (error) {
+                    console.error("Error signing out:", error);
+                }
+            }}
+        />
+
     </ScrollView>
   );
 }

@@ -15,7 +15,7 @@ export default function Index() {
                 resizeMode="contain"
             />
 
-            <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
+            <Text style={tw`text-center text-3xl font-bold text-gray-800 mt-4`}>
                 Welcome to Aegis Security Systems
             </Text>
             
