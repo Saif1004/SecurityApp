@@ -10,7 +10,6 @@ const firebaseConfig = {
     appId: "1:455327001497:web:c4d06bd1ec25cd94604108",
 };
 
-// Ensure Firebase is initialized only once
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
 const auth = getAuth(app);
