@@ -51,7 +51,6 @@ export default function App() {
             ),
           }}
         />
-
         <Tab.Screen
           name={alertName}
           component={AlertScreen}

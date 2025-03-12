@@ -14,5 +14,6 @@ export default function AlertScreen() {
         this is alert
       </Text>
     </View>
+
   );
 }

@@ -1,10 +1,15 @@
-import { ScrollView, View, Text, Image, Button, Pressable } from 'react-native';
+import {ScrollView, View, Text, Image, Button, Pressable, TouchableOpacity} from 'react-native';
 import React, { useEffect, useState } from 'react';
 import tw from 'twrnc';
 import AegisShield from '../../assets/images/Aegis-Shield.png';
+import Eye from '../../assets/images/eye.png';
+import Markk from '../../assets/images/Mark.png';
+import Lockk from '../../assets/images/Lock.png';
+import MotionSensor from '../../assets/images/Motion.png';
 import auth from '@react-native-firebase/auth';
 import {router} from "expo-router";
 import {signOut} from "@firebase/auth";
+import App from "@/app/home";
 
 export default function HomeScreen() {
     const user = auth().currentUser;
@@ -52,18 +57,34 @@ export default function HomeScreen() {
           marginBottom: 200,
         }}
       >
-        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
-          Door Bell
-        </Text>
-        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
-          Main Bell
-        </Text>
-        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
-          Front Cam
-        </Text>
-        <Text style={tw`w-35 h-40 bg-white rounded-xl text-center shadow-xl`}>
-          Backyard
-        </Text>
+          <TouchableOpacity
+              onPress={() => router.push('../nav-screens/AlertScreen')}
+              style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
+              <Image source={Markk} style={tw`w-9 h-10 mr-3`} resizeMode="contain" />
+              <Text style={tw`text-lg font-rubik text-center text-black-300`}>Alert Logs</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+              onPress={() => router.push('../nav-screens/LiveViewScreen')}
+              style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
+              <Image source={Eye} style={tw`w-10 h-10 mr-3`} resizeMode="contain" />
+              <Text style={tw`text-lg font-rubik text-center text-black-300`}>Live View</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+              onPress={() => router.push('../nav-screens/Lock')}
+              style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
+              <Image source={Lockk} style={tw`w-10 h-10 mr-3`} resizeMode="contain" />
+              <Text style={tw`text-lg font-rubik text-center text-black-300`}>Solenoid Lock</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+              onPress={() => router.push('../nav-screens/Sensor')}
+              style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
+              <Image source={MotionSensor} style={tw`w-10 h-10 mr-3`} resizeMode="contain" />
+              <Text style={tw`text-lg font-rubik text-center text-black-300`}>Motion Sensor</Text>
+          </TouchableOpacity>
+
       </View>
         <View style={tw`flex-1`} />
 
@@ -82,3 +103,4 @@ export default function HomeScreen() {
     </ScrollView>
   );
 }
+
