@@ -58,7 +58,8 @@
     "run": "^1.5.0",
     "tailwind": "^2.3.1",
     "tailwindcss": "^3.4.17",
-    "twrnc": "^4.6.1"
+    "twrnc": "^4.6.1",
+    "@babel/runtime": "^7.15.4", "metro-react-native-babel-preset": "^0.69.0"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",

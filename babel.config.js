@@ -2,7 +2,7 @@ module.exports = function (api) {
     api.cache(true);
     return {
         presets: [
-            ["babel-preset-expo", { jsxImportSource: "nativewind" }],
+            ["babel-preset-expo","module:metro-react-native-babel-preset", { jsxImportSource: "nativewind" }],
             "nativewind/babel",
         ],
     };
