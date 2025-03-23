@@ -1,10 +1,8 @@
-const { getDefaultConfig } = require('@react-native/metro-config');
+const { getDefaultConfig } = require("expo/metro-config");
+2
+const { withNativeWind } = require('nativewind/metro');
+3
+4
+const config = getDefaultConfig(_dirname)
 
-const config = getDefaultConfig(__dirname);
-
-config.transformer = {
-  ...config.transformer,
-  unstable_allowRequireContext: true,
-};
-
-module.exports = config;
+module.exports = withNativeWind(config, { input: './global.css' })
