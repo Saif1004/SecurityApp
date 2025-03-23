@@ -23,7 +23,11 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
     "android": "^0.0.8",
+=======
+    "appwrite": "^17.0.0",
+>>>>>>> Stashed changes
 =======
     "appwrite": "^17.0.0",
 >>>>>>> Stashed changes

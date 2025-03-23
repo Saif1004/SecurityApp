@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import { useRouter } from 'expo-router';
 <<<<<<< Updated upstream
+<<<<<<< Updated upstream
 import {ScrollView, View, Image, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Button, ActivityIndicator,
     TextInput} from 'react-native';
 import tw from 'twrnc';
@@ -67,11 +68,35 @@ const SignIn = () => {
                 Aegis Security Systems
             </Text>
 =======
+=======
+import { ScrollView, View, Image, Text, TouchableOpacity, Alert } from 'react-native';
+import AegisShield from '../assets/images/Aegis-Shield.png'; // Corrected path
+import google from '../assets/images/google.png'; // Corrected path
+import { login } from '@/lib/appwrite'; // Ensure this import is correctly pointing to your Appwrite setup
+
+const SignIn = () => {
+  const router = useRouter();
+
+  const handleLogin = async () => {
+    try {
+      const result = await login();
+      if (result) {
+        console.log('Successfully logged in');
+      } else {
+        Alert.alert('Error', 'Failed to log in');
+      }
+    } catch (error) {
+      Alert.alert('Login Error');
+    }
+  };
+
+>>>>>>> Stashed changes
   return (
     // Added <View> as the root parent component
     <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle="flex-1 justify-center items-center bg-white px-4">
         <Image source={AegisShield} style={{ width: 60, height: 60 }} resizeMode="contain" />
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 
         <Text style="text-3xl font-bold text-gray-800 mt-4">Aegis Security Systems</Text>
@@ -118,6 +143,11 @@ const SignIn = () => {
         </ScrollView>
     );
 =======
+=======
+
+        <Text style="text-3xl font-bold text-gray-800 mt-4">Aegis Security Systems</Text>
+
+>>>>>>> Stashed changes
         <TouchableOpacity
           onPress={handleLogin}
           style="flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5"
@@ -130,6 +160,7 @@ const SignIn = () => {
       </ScrollView>
     </View>
   );
+<<<<<<< Updated upstream
 >>>>>>> Stashed changes
 };
 const styles = StyleSheet.create({
@@ -148,4 +179,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff'
     }
 });
+=======
+};
+>>>>>>> Stashed changes
 
