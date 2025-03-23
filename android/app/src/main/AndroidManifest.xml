@@ -26,6 +26,7 @@
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="SecurityApp"/>
         <data android:scheme="com.galaxies.firebase"/>
+        <data android:scheme="exp+securityapp"/>
       </intent-filter>
     </activity>
   </application>
