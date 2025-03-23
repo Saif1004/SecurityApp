@@ -37,7 +37,7 @@ export default function SignIn  ()  {
                 style={tw`w-60 h-60`}
                 resizeMode="contain"
             />
-
+            
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
                 Aegis Security Systems
             </Text>
