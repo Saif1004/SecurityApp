@@ -15,6 +15,7 @@
     "preset": "jest-expo"
   },
   "dependencies": {
+    "@babel/runtime": "^7.26.10",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "^1.24.0",
     "@react-native-firebase/app": "^21.12.0",
@@ -39,6 +40,7 @@
     "git": "^0.1.5",
     "jsx": "^0.9.89",
     "link": "^2.1.1",
+    "metro-react-native-babel-preset": "^0.69.0",
     "nativewind": "^4.1.23",
     "node": "^23.10.0",
     "node.js": "^0.0.1-security",
@@ -58,23 +60,21 @@
     "run": "^1.5.0",
     "tailwind": "^2.3.1",
     "tailwindcss": "^3.4.17",
-    "twrnc": "^4.6.1",
-    "@babel/runtime": "^7.15.4", "metro-react-native-babel-preset": "^0.69.0"
+    "twrnc": "^4.6.1"
   },
   "devDependencies": {
     "@babel/core": "^7.26.10",
     "@react-native-community/cli": "latest",
+    "@react-native/metro-config": "^0.78.1",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
     "@types/react-native-vector-icons": "^6.4.18",
     "@types/react-test-renderer": "^18.3.0",
     "jest": "^29.2.1",
     "jest-expo": "~52.0.4",
-    "metro": "^0.82.0",
-    "metro-config": "^0.82.0",
-    "metro-core": "^0.82.0",
+    "metro": "^0.81.4",
+    "metro-config": "^0.81.4",
     "metro-react-native-babel-preset": "^0.77.0",
-    "metro-runtime": "^0.82.0",
     "metro-source-map": "^0.82.0",
     "react-test-renderer": "18.3.1",
     "typescript": "^5.3.3"
