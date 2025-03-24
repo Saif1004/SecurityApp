@@ -46,7 +46,6 @@ export default function SignIn  ()  {
             <View style={tw`flex-0.5`} />
 
             <View style={styles.container}>
-                <KeyboardAvoidingView behavior="padding">
                     <TextInput
                         style={styles.input}
                         value={email}
@@ -81,7 +80,6 @@ export default function SignIn  ()  {
                             Continue with Google
                         </Text>
                     </TouchableOpacity>
-                </KeyboardAvoidingView>
             </View>
 
             <View style={tw`flex-1.5`} />
