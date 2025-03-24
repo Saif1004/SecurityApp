@@ -13,13 +13,14 @@ import App from "@/app/home";
 
 export default function HomeScreen() {
     const user = auth().currentUser;
-    const time2 = '16:00';
+    const time2 = new Date().toLocaleTimeString();
     var iconHeight = 26;
     var iconWidth = 26;
     const [time, setTime] = useState(new Date());
 
     useEffect(() => {
-    setInterval(() => setTime(new Date()), 1000);
+      const interval = setInterval(() => setTime(new Date()), 1000);
+      return () => clearInterval(interval);
   }, []);
 
   return (
@@ -39,7 +40,7 @@ export default function HomeScreen() {
         <View style={tw`w-80 h-0.5 bg-gray-300 rounded-md mt-5`}></View>
 
         <Text style={tw`flex-auto text-black text-4x1 mt-4`}>
-          The kids arrived home at {time2}h
+          The kids arrived home at {time2}
         </Text>
       </View>
 
