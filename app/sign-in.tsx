@@ -75,7 +75,11 @@ const SignIn = () => {
 >>>>>>> Stashed changes
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         <Text style="text-3xl font-bold text-gray-800 mt-4">Aegis Security Systems</Text>
+=======
+            <View style={tw`flex-0.2`} />
+>>>>>>> parent of e526914 (Revert "adjusted sign in and sign up")
 =======
             <View style={tw`flex-0.2`} />
 >>>>>>> parent of e526914 (Revert "adjusted sign in and sign up")
