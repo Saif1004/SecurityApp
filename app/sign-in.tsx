@@ -21,6 +21,7 @@ import { signInWithEmailAndPassword } from "@firebase/auth";
 
 export default function SignIn() {
     const router = useRouter();
+    const handleLogin = () => {};
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -29,7 +30,7 @@ export default function SignIn() {
         setLoading(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            router.push('/home');
+            router.push('../nav-screens/HomeScreen');
         } catch (e: any) {
             const err = e as FirebaseError;
             alert('Sign in failed: ' + err.message);
@@ -45,25 +46,9 @@ export default function SignIn() {
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>Aegis Security Systems</Text>
 
 
-            <TouchableOpacity
-                onPress={() => {}}
-                style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}
-            >
-                <Image source={google} style={tw`w-5 h-5 mr-3`} resizeMode="contain" />
-                <Text style={tw`text-lg font-rubik text-black-300`}>Continue with Google</Text>
-            </TouchableOpacity>
+            <View style={tw`flex-0.5`} />
 
-            <View style={tw`w-full p-4`}>
-                <Text
-                    onPress={() => router.push('/home')}
-                    style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
-                >
-                    this is alert
-                </Text>
-            </View>
-
-            <View style={tw`w-full mt-5`}>
-                <KeyboardAvoidingView behavior="padding">
+            <View style={styles.container}>
                     <TextInput
                         placeholder="Email"
                         value={email}
@@ -84,8 +69,21 @@ export default function SignIn() {
                     ) : (
                         <Button onPress={signIn} title="Login" />
                     )}
-                </KeyboardAvoidingView>
             </View>
+            <TouchableOpacity
+                onPress={handleLogin}
+                style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
+                <Image source ={google}
+                       style={tw`w-5 h-5 mr-3`}
+                       resizeMode="contain"
+                />
+                <Text style={tw`text-lg font-rubik text-black-300`}>
+                    Continue with Google
+                </Text>
+            </TouchableOpacity>
+            <View style={tw`flex-1.5`} />
+
+
 
             <View style={tw`w-full p-4 mt-5`}>
                 <Text
@@ -100,13 +98,18 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
+    container: {
+        marginHorizontal: 20,
+        flex: 1,
+        justifyContent: 'center'
+    },
     input: {
         marginVertical: 4,
         height: 50,
         width: 300,
         borderWidth: 1,
         borderRadius: 4,
-        padding: 5,
+        padding: 10,
         backgroundColor: '#fff'
     }
 });
