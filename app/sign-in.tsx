@@ -77,6 +77,7 @@ const SignIn = () => {
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         <Text style="text-3xl font-bold text-gray-800 mt-4">Aegis Security Systems</Text>
 =======
             <View style={tw`flex-0.2`} />
@@ -85,6 +86,8 @@ const SignIn = () => {
             <View style={tw`flex-0.2`} />
 >>>>>>> parent of e526914 (Revert "adjusted sign in and sign up")
 =======
+=======
+>>>>>>> parent of e5fa775 (adjusted sign in and sign up)
             <TouchableOpacity
                 onPress={handleLogin}
                 style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
@@ -97,6 +100,9 @@ const SignIn = () => {
                     </Text>
             </TouchableOpacity>
             <View style={tw`flex-1`} />
+<<<<<<< HEAD
+>>>>>>> parent of e5fa775 (adjusted sign in and sign up)
+=======
 >>>>>>> parent of e5fa775 (adjusted sign in and sign up)
 
 <<<<<<< Updated upstream
