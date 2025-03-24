@@ -49,7 +49,6 @@ export default function SignIn() {
             <View style={tw`flex-0.5`} />
 
             <View style={styles.container}>
-                <KeyboardAvoidingView behavior="padding">
                     <TextInput
                         placeholder="Email"
                         value={email}
@@ -70,7 +69,6 @@ export default function SignIn() {
                     ) : (
                         <Button onPress={signIn} title="Login" />
                     )}
-                </KeyboardAvoidingView>
             </View>
             <TouchableOpacity
                 onPress={handleLogin}
