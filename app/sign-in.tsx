@@ -1,7 +1,5 @@
 import React, {useState} from 'react';
 import { useRouter } from 'expo-router';
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
 import {ScrollView, View, Image, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Button, ActivityIndicator,
     TextInput} from 'react-native';
 import tw from 'twrnc';
@@ -31,30 +29,15 @@ export default function SignIn  ()  {
             setLoading(false);
         }
     };
-=======
-import { ScrollView, View, Image, Text, TouchableOpacity, Alert } from 'react-native';
-import AegisShield from '../assets/images/Aegis-Shield.png'; // Corrected path
-import google from '../assets/images/google.png'; // Corrected path
-import { login } from '@/lib/appwrite'; // Ensure this import is correctly pointing to your Appwrite setup
 
-const SignIn = () => {
-  const router = useRouter();
->>>>>>> Stashed changes
+    return (
+        <ScrollView contentContainerStyle={tw`flex-1 justify-center items-center bg-white px-4`}>
+            <Image
+                source={AegisShield}
+                style={tw`w-60 h-60`}
+                resizeMode="contain"
+            />
 
-  const handleLogin = async () => {
-    try {
-      const result = await login();
-      if (result) {
-        console.log('Successfully logged in');
-      } else {
-        Alert.alert('Error', 'Failed to log in');
-      }
-    } catch (error) {
-      Alert.alert('Login Error');
-    }
-  };
-
-<<<<<<< Updated upstream
             <View style={tw`w-full p-4`}>
                 <Text
                     onPress={() => router.push('/home')}
@@ -63,45 +46,24 @@ const SignIn = () => {
                     home temp button
                 </Text>
             </View>
-            
+
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
                 Aegis Security Systems
             </Text>
-=======
-=======
-import { ScrollView, View, Image, Text, TouchableOpacity, Alert } from 'react-native';
-import AegisShield from '../assets/images/Aegis-Shield.png'; // Corrected path
-import google from '../assets/images/google.png'; // Corrected path
-import { login } from '@/lib/appwrite'; // Ensure this import is correctly pointing to your Appwrite setup
 
-const SignIn = () => {
-  const router = useRouter();
+            <TouchableOpacity
+                onPress={handleLogin}
+                style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
+                    <Image source ={google}
+                           style={tw`w-5 h-5 mr-3`}
+                           resizeMode="contain"
+                    />
+                    <Text style={tw`text-lg font-rubik text-black-300`}>
+                        Continue with Google
+                    </Text>
+            </TouchableOpacity>
+            <View style={tw`flex-1`} />
 
-  const handleLogin = async () => {
-    try {
-      const result = await login();
-      if (result) {
-        console.log('Successfully logged in');
-      } else {
-        Alert.alert('Error', 'Failed to log in');
-      }
-    } catch (error) {
-      Alert.alert('Login Error');
-    }
-  };
-
->>>>>>> Stashed changes
-  return (
-    // Added <View> as the root parent component
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle="flex-1 justify-center items-center bg-white px-4">
-        <Image source={AegisShield} style={{ width: 60, height: 60 }} resizeMode="contain" />
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
-
-        <Text style="text-3xl font-bold text-gray-800 mt-4">Aegis Security Systems</Text>
-
-<<<<<<< Updated upstream
             <View style={styles.container}>
                 <KeyboardAvoidingView behavior="padding">
                     <TextInput
@@ -142,26 +104,6 @@ const SignIn = () => {
             </View>
         </ScrollView>
     );
-=======
-=======
-
-        <Text style="text-3xl font-bold text-gray-800 mt-4">Aegis Security Systems</Text>
-
->>>>>>> Stashed changes
-        <TouchableOpacity
-          onPress={handleLogin}
-          style="flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5"
-        >
-          <Image source={google} style={{ width: 30, height: 30, marginRight: 10 }} resizeMode="contain" />
-          <Text style="text-lg font-[Rubik] text-black-300">Continue with Google</Text>
-        </TouchableOpacity>
-
-        <View style="w-full p-4" />
-      </ScrollView>
-    </View>
-  );
-<<<<<<< Updated upstream
->>>>>>> Stashed changes
 };
 const styles = StyleSheet.create({
     container: {
@@ -179,7 +121,4 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff'
     }
 });
-=======
-};
->>>>>>> Stashed changes
 
