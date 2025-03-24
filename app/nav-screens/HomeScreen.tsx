@@ -9,7 +9,6 @@ import MotionSensor from '../../assets/images/Motion.png';
 import auth from '@react-native-firebase/auth';
 import {router} from "expo-router";
 import {signOut} from "@firebase/auth";
-import App from "@/app/home";
 
 export default function HomeScreen() {
     const user = auth().currentUser;
