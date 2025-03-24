@@ -21,6 +21,7 @@ import { signInWithEmailAndPassword } from "@firebase/auth";
 
 export default function SignIn() {
     const router = useRouter();
+    const handleLogin = () => {};
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
@@ -43,15 +44,10 @@ export default function SignIn() {
 
             <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>Aegis Security Systems</Text>
 
-            <TouchableOpacity
-                onPress={() => {}}
-                style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}
-            >
-                <Image source={google} style={tw`w-5 h-5 mr-3`} resizeMode="contain" />
-                <Text style={tw`text-lg font-rubik text-black-300`}>Continue with Google</Text>
-            </TouchableOpacity>
 
-            <View style={tw`w-full mt-5`}>
+            <View style={tw`flex-0.5`} />
+
+            <View style={styles.container}>
                 <KeyboardAvoidingView behavior="padding">
                     <TextInput
                         placeholder="Email"
@@ -75,6 +71,20 @@ export default function SignIn() {
                     )}
                 </KeyboardAvoidingView>
             </View>
+            <TouchableOpacity
+                onPress={handleLogin}
+                style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
+                <Image source ={google}
+                       style={tw`w-5 h-5 mr-3`}
+                       resizeMode="contain"
+                />
+                <Text style={tw`text-lg font-rubik text-black-300`}>
+                    Continue with Google
+                </Text>
+            </TouchableOpacity>
+            <View style={tw`flex-1.5`} />
+
+
 
             <View style={tw`w-full p-4 mt-5`}>
                 <Text
@@ -89,13 +99,18 @@ export default function SignIn() {
 }
 
 const styles = StyleSheet.create({
+    container: {
+        marginHorizontal: 20,
+        flex: 1,
+        justifyContent: 'center'
+    },
     input: {
         marginVertical: 4,
         height: 50,
         width: 300,
         borderWidth: 1,
         borderRadius: 4,
-        padding: 5,
+        padding: 10,
         backgroundColor: '#fff'
     }
 });
