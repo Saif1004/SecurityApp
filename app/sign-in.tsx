@@ -30,7 +30,8 @@ export default function SignIn() {
         setLoading(true);
         try {
             await signInWithEmailAndPassword(auth, email, password);
-        } catch (e) {
+            router.push('/home');
+        } catch (e: any) {
             const err = e as FirebaseError;
             alert('Sign in failed: ' + err.message);
         } finally {
