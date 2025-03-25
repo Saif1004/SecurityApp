@@ -7,10 +7,11 @@ import Markk from '../../assets/images/Mark.png';
 import Lockk from '../../assets/images/Lock.png';
 import MotionSensor from '../../assets/images/Motion.png';
 import auth from '@react-native-firebase/auth';
-import {router} from "expo-router";
+import { useRouter } from "expo-router";
 import {signOut} from "@firebase/auth";
 
 export default function HomeScreen() {
+    const router = useRouter();
     const user = auth().currentUser;
     const time2 = '16:00';
     var iconHeight = 26;
@@ -57,28 +58,28 @@ export default function HomeScreen() {
                 }}
             >
                 <TouchableOpacity
-                    onPress={() => router.push('../nav-screens/AlertScreen')}
+                    onPress={() => router.push('/nav-screens/AlertScreen')}
                     style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
                     <Image source={Markk} style={tw`w-9 h-10 mr-3`} resizeMode="contain" />
                     <Text style={tw`text-lg font-rubik text-center text-black-300`}>Alert Logs</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => router.push('../nav-screens/LiveViewScreen')}
+                    onPress={() => router.push('/nav-screens/LiveViewScreen')}
                     style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
                     <Image source={Eye} style={tw`w-10 h-10 mr-3`} resizeMode="contain" />
                     <Text style={tw`text-lg font-rubik text-center text-black-300`}>Live View</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => router.push('../nav-screens/Lock')}
+                    onPress={() => router.push('/nav-screens/Lock')}
                     style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
                     <Image source={Lockk} style={tw`w-10 h-10 mr-3`} resizeMode="contain" />
                     <Text style={tw`text-lg font-rubik text-center text-black-300`}>Solenoid Lock</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    onPress={() => router.push('../nav-screens/Sensor')}
+                    onPress={() => router.push('/nav-screens/Sensor')}
                     style={tw`w-40 h-45 bg-white items-center rounded-xl text-center shadow-xl`}>
                     <Image source={MotionSensor} style={tw`w-10 h-10 mr-3`} resizeMode="contain" />
                     <Text style={tw`text-lg font-rubik text-center text-black-300`}>Motion Sensor</Text>
