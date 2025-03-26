@@ -47,6 +47,7 @@
     "node.js": "^0.0.1-security",
     "react": "^18.3.1",
     "react-dom": "18.3.1",
+    "react-icons": "^5.5.0",
     "react-native": "0.76.7",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-ico-material-design": "^5.1.2",
