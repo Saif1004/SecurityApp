@@ -142,7 +142,7 @@ export default function AlertScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity
-                onPress={() => handlePress('/nav-screens/Motion Sensor')}
+                onPress={() => handlePress('/nav-screens/Sensor')}
                 style={[
                     tw`w-37 h-44 items-center rounded-2xl text-center shadow-xl overflow-hidden`,
                     activeBox === '/nav-screens/Motion Sensor' ? tw`bg-white` : {backgroundColor: '#4c7efc'}
