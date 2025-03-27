@@ -12,7 +12,7 @@ export default function LiveViewScreen() {
         onPress={() => router.push('/nav-screens/HomeScreen')}
         style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
       >
-        this is the lock screen
+        this is settings
       </Text>
     </View>
   );
