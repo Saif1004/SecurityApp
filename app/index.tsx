@@ -6,6 +6,12 @@ import AegisShield from '@/assets/images/Aegis-Shield.png';
 
 export default function Index() {
     const router = useRouter();
+    const API_BASE_URL = "https://3cdc-82-41-103-13.ngrok-free.app";
+
+fetch(`${API_BASE_URL}/test`)
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error("Error:", error));
 
     return (
         <ScrollView contentContainerStyle={tw`flex-1 justify-center items-center bg-white px-4`}>
@@ -18,6 +24,8 @@ export default function Index() {
             <Text style={tw`text-center text-3xl font-bold text-gray-800 mt-4`}>
                 Welcome to Aegis Security Systems
             </Text>
+
+
             
 
             <View style={tw`flex-1`} />
