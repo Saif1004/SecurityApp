@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import tw from 'twrnc';
 import { router } from 'expo-router';
 
-const API_URL = 'https://your-server.com/detect';
+const API_URL = 'https://59d3-82-41-103-13.ngrok-free.app/detect';
 
 export default function AlertScreen() {
   const [alerts, setAlerts] = useState([]);
@@ -33,7 +33,11 @@ export default function AlertScreen() {
           <TouchableOpacity 
             key={index} 
             style={tw`flex-row bg-gray-800 p-3 rounded-lg mb-3`}
-            onPress={() => router.push({ pathname: '/VideoScreen', params: { videoUrl: alert.video } })}
+            onPress={() => router.push({
+              pathname: '/VideoScreen',
+              params: { videoUrl: alert.video }
+            })}
+            
           >
             <Image
               source={{ uri: alert.image }}
