@@ -1,14 +1,12 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 import face_recognition
 import cv2
 import numpy as np
 import time
 import pickle
-import sqlite3
-from datetime import datetime
 import os
-import base64
+from datetime import datetime
 import subprocess
 
 try:
@@ -22,34 +20,37 @@ except ImportError:
 app = Flask(__name__)
 CORS(app)
 
+# Hardware setup
 if PI_HARDWARE_AVAILABLE:
     green_led = LED(17)
     pir = MotionSensor(4)
     green_led.off()
-else:
-    green_led = None
-    pir = None
-
-print("[INFO] Loading face encodings...")
-with open("../encodings.pickle", "rb") as f:
-    data = pickle.loads(f.read())
-known_face_encodings = data["encodings"]
-known_face_names = data["names"]
-
-
-if PI_HARDWARE_AVAILABLE:
     picam2 = Picamera2()
     picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (1280, 720)}))
     picam2.start()
 else:
+    green_led = None
+    pir = None
     picam2 = None
+
+# Load face encodings
+print("[INFO] Loading face encodings...")
+with open("encodings.pickle", "rb") as f:
+    data = pickle.loads(f.read())
+known_face_encodings = data["encodings"]
+known_face_names = data["names"]
+
+# Create image storage directory
+os.makedirs("static/images", exist_ok=True)
+os.makedirs("static/videos", exist_ok=True)
 
 cv_scaler = 4
 prev_detected_names = set()
 
-def image_to_base64(image):
-    _, buffer = cv2.imencode('.jpg', image)
-    return base64.b64encode(buffer).decode('utf-8')
+def save_image(image):
+    filename = f"static/images/face_{int(time.time())}.jpg"
+    cv2.imwrite(filename, image)
+    return filename
 
 def detect():
     global prev_detected_names
@@ -79,20 +80,20 @@ def detect():
                 best_match_index = np.argmin(face_distances)
                 if matches[best_match_index]:
                     name = known_face_names[best_match_index]
-
                 face_names.append(name)
 
             detected_set = set(face_names)
             if detected_set != prev_detected_names:
                 prev_detected_names = detected_set
 
-                base64_image = image_to_base64(frame)
+                image_path = save_image(frame)
+                image_url = f"http://{request.host}/{image_path}"
 
                 for name in face_names:
                     detected_faces_data.append({
                         "name": name,
                         "timestamp": datetime.now().strftime("%H:%M:%S"),
-                        "image": base64_image
+                        "image": image_url
                     })
 
                 break
@@ -101,12 +102,15 @@ def detect():
         print("Motion Stopped")
 
     else:
+        dummy_path = "static/images/mock_face.jpg"
         dummy_image = np.zeros((720, 1280, 3), dtype=np.uint8)
-        base64_image = image_to_base64(dummy_image)
+        cv2.imwrite(dummy_path, dummy_image)
+
+        image_url = f"http://{request.host}/{dummy_path}"
         detected_faces_data = [{
             "name": "Mock Person",
             "timestamp": datetime.now().strftime("%H:%M:%S"),
-            "image": base64_image
+            "image": image_url
         }]
 
     return detected_faces_data if detected_faces_data else [{
@@ -119,9 +123,7 @@ def record_motion_clip():
     video_path = f"static/videos/motion_{int(time.time())}.mp4"
     if PI_HARDWARE_AVAILABLE:
         command = [
-            "ffmpeg",
-            "-t", "10",
-            "-f", "v4l2",
+            "ffmpeg", "-t", "10", "-f", "v4l2",
             "-i", "/dev/video0",
             "-vcodec", "libx264",
             "-preset", "ultrafast",
@@ -135,10 +137,11 @@ def record_motion_clip():
 
 @app.route('/detect', methods=['GET'])
 def detect_motion():
+    print("[BACKEND] /detect triggered")
     try:
         detected_faces = detect()
         video_path = record_motion_clip()
-        video_url = f"http://127.0.0.1:5000/{video_path}"  # <-- Replace with actual IP or domain
+        video_url = f"http://{request.host}/{video_path}"
 
         alert_data = [
             {
@@ -149,10 +152,18 @@ def detect_motion():
             }
             for face in detected_faces
         ]
-
         return jsonify({"status": "success", "detected_faces": alert_data})
     except Exception as e:
+        print("[ERROR]", e)
         return jsonify({"status": "error", "message": str(e)})
+
+@app.route('/')
+def home():
+    return 'Security app backend is running'
+
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=5000)
