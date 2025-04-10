@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import {
     ScrollView,
@@ -15,8 +15,8 @@ import {
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import google from '../assets/images/google.png';
-import { useAuth } from './AuthProvider'; // ✅ Use AuthProvider
-import auth from '@react-native-firebase/auth'; // ✅ Use correct Firebase library
+import { useAuth } from './AuthProvider';
+import auth from '@react-native-firebase/auth';
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 
 GoogleSignin.configure({
@@ -25,30 +25,23 @@ GoogleSignin.configure({
 
 export default function SignIn() {
     const router = useRouter();
-    const { user } = useAuth(); // ✅ Get user state from global Auth Context
+    const { user } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
-    const handleGoogleSignIn = async () => {
-        try {
-            await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-            const { idToken } = await GoogleSignin.signIn();
-            const googleCredential = auth.GoogleAuthProvider.credential(idToken);
-            await auth().signInWithCredential(googleCredential); // ✅ Correct function
-        } catch (error) {
-            if (error.code === statusCodes.SIGN_IN_CANCELLED) {
-                Alert.alert('Google Sign-In cancelled');
-            } else {
-                Alert.alert('Sign-in failed', error.message);
-            }
+    // Handle navigation when user is authenticated
+    useEffect(() => {
+        if (user) {
+            router.replace('/nav-screens/HomeScreen');
         }
-    };
+    }, [user]);
+
 
     const handleEmailSignIn = async () => {
         setLoading(true);
         try {
-            await auth().signInWithEmailAndPassword(email, password); // ✅ Correct function
+            await auth().signInWithEmailAndPassword(email, password);
         } catch (error) {
             Alert.alert('Sign in failed', error.message);
         } finally {
@@ -56,12 +49,7 @@ export default function SignIn() {
         }
     };
 
-    // ✅ If user is already signed in, navigate automatically
-    if (user) {
-        router.replace('/nav-screens/HomeScreen');
-        return null; // Prevents rendering SignIn screen
-    }
-
+    // Don't return null anymore - let useEffect handle the navigation
     return (
         <ScrollView contentContainerStyle={tw`flex-1 justify-center items-center bg-white px-4`}>
             <Image source={AegisShield} style={tw`w-60 h-60`} resizeMode="contain" />
@@ -91,13 +79,19 @@ export default function SignIn() {
                 )}
             </View>
 
-            <TouchableOpacity onPress={handleGoogleSignIn} style={tw`flex-row items-center justify-center bg-white shadow-md rounded-full w-full py-4 mt-5`}>
+            <TouchableOpacity 
+                onPress={handleGoogleSignIn} 
+                style={tw`flex-row items-center justify-center bg-white shadow-md rounded-full w-full py-4 mt-5`}
+            >
                 <Image source={google} style={tw`w-5 h-5 mr-3`} resizeMode="contain" />
                 <Text style={tw`text-lg text-black-300`}>Continue with Google</Text>
             </TouchableOpacity>
 
             <View style={tw`w-full p-4 mt-5`}>
-                <Text onPress={() => router.push('/sign-up')} style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}>
+                <Text 
+                    onPress={() => router.push('/sign-up')} 
+                    style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
+                >
                     Go to Sign Up
                 </Text>
             </View>

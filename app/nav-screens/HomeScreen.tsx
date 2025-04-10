@@ -42,59 +42,98 @@ export default function AlertHomeScreen() {
     };
 
     return (
-        <ScrollView contentContainerStyle={tw`flex-1 px-6 py-4 bg-gray-50`}>
-            <View style={tw`flex-row justify-between items-center mt-8`}>
+        <ScrollView contentContainerStyle={tw`flex-1 px-6 pt-2 pb-4 bg-gray-50`}>
+            {/* Header Section - Moved up */}
+            <View style={tw`flex-row justify-between items-center mt-4`}>
                 <View style={tw`flex-row items-center`}>
-                    <Image source={AegisShield} style={tw`w-12 h-12 rounded-full mr-3 ml-4`} />
+                    <Image source={AegisShield} style={tw`w-12 h-12 rounded-full mr-3 ml-2`} />
                     <View>
                         <Text style={tw`text-black text-base font-bold`}>Hello, {user?.email}!</Text>
-                        <Text style={tw`text-gray-600 mt-2 text-sm`}>{time.toLocaleString()}</Text>
+                        <Text style={tw`text-gray-600 mt-1 text-sm`}>{time.toLocaleString()}</Text>
                     </View>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/nav-screens/settings')} style={tw`mr-8`}>
+                <TouchableOpacity onPress={() => router.push('/nav-screens/settings')} style={tw`mr-4`}>
                     <Ionicons name="settings-outline" size={24} color="black" />
                 </TouchableOpacity>
             </View>
 
-            <View style={tw`w-77 h-0.5 bg-gray-300 mt-6 ml-4`} />
-            <Text style={tw`text-gray-600 text-center mt-8`}>The kids arrived home at {time2}h</Text>
+            <View style={tw`w-77 h-0.5 bg-gray-300 mt-4 ml-2`} />
+            <Text style={tw`text-gray-600 text-center mt-4`}>The kids arrived home at {time2}h</Text>
 
-            <View style={tw`w-full flex-row flex-wrap justify-center items-center mt-8`}>
-                {[
-                    { name: 'Alerts', icon: 'alert-circle', route: '/nav-screens/AlertScreen' },
-                    { name: 'Live View', icon: 'eye', route: '/nav-screens/LiveViewScreen' },
-                    { name: 'Solenoid Lock', icon: 'lock-closed', route: '/nav-screens/Lock' },
-                    { name: 'Motion Sensor', icon: 'radio', route: '/nav-screens/Motion Sensor' }
-                ].map((item, index) => (
-                    <TouchableOpacity
-                        key={index}
-                        onPress={() => handlePress(item.route)}
-                        style={[
-                            tw`w-37 h-44 rounded-2xl m-2 overflow-hidden`,
-                            activeBox === item.route ? tw`bg-white` : { backgroundColor: '#4c7efc' }
-                        ]}>
-                        <LinearGradient
-                            colors={['#1D4ED8', '#22D3EE']}
-                            start={{ x: 0, y: 1 }}
-                            end={{ x: 0, y: 0 }}
-                            style={tw`w-37 h-44 items-center justify-between p-4`}
-                        >
-                            <Ionicons name={item.icon} size={22} color="white" style={tw`mb-4`} />
-                            <Text style={tw`text-lg text-white text-center`}>{item.name}</Text>
-                        </LinearGradient>
-                    </TouchableOpacity>
-                ))}
+            {/* Grid Section - Compact layout */}
+            <View style={tw`w-full mt-6`}>
+                <View style={tw`flex-row justify-between mb-3`}>
+                    <GridItem 
+                        active={activeBox === '/nav-screens/AlertScreen'}
+                        onPress={() => handlePress('/nav-screens/AlertScreen')}
+                        icon="alert-circle"
+                        label="Alerts"
+                    />
+                    <GridItem 
+                        active={activeBox === '/nav-screens/LiveViewScreen'}
+                        onPress={() => handlePress('/nav-screens/LiveViewScreen')}
+                        icon="eye"
+                        label="Live View"
+                    />
+                </View>
+                <View style={tw`flex-row justify-between`}>
+                    <GridItem 
+                        active={activeBox === '/nav-screens/Lock'}
+                        onPress={() => handlePress('/nav-screens/Lock')}
+                        icon="lock-closed"
+                        label="Solenoid Lock"
+                    />
+                    <GridItem 
+                        active={activeBox === '/nav-screens/Motion Sensor'}
+                        onPress={() => handlePress('/nav-screens/Motion Sensor')}
+                        icon="radio"
+                        label="Motion Sensor"
+                    />
+                </View>
             </View>
 
-            <View style={tw`flex-1 mt-10 mb-10 items-center`}>
-                <TouchableOpacity onPress={signOutUser} style={tw`bg-red-600 px-6 py-3 rounded-lg`}>
-                    <Text style={tw`text-white text-lg`}>Log Out</Text>
+            {/* Logout Button - Now properly positioned */}
+            <View style={tw`mt-6 mb-4 items-center`}>
+                <TouchableOpacity 
+                    onPress={signOutUser} 
+                    style={tw`bg-red-600 px-6 py-3 rounded-lg w-full max-w-xs`}
+                >
+                    <Text style={tw`text-white text-lg text-center`}>Log Out</Text>
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={tw`absolute bottom-27 left-18 -ml-6 w-12 h-12 bg-white rounded-full shadow-lg items-center justify-center`}>
+            {/* Floating Add Button - Adjusted position */}
+            <TouchableOpacity 
+                style={tw`absolute bottom-20 right-6 w-12 h-12 bg-white rounded-full shadow-lg items-center justify-center`}
+            >
                 <Ionicons name="add" size={24} color="black" />
             </TouchableOpacity>
         </ScrollView>
+    );
+}
+
+// Extracted Grid Item component for cleaner code
+function GridItem({ active, onPress, icon, label }: { 
+    active: boolean; 
+    onPress: () => void; 
+    icon: string; 
+    label: string 
+}) {
+    return (
+        <TouchableOpacity
+            onPress={onPress}
+            style={[
+                tw`w-[48%] aspect-square rounded-2xl overflow-hidden`,
+                active ? tw`bg-white` : null
+            ]}
+        >
+            <LinearGradient
+                colors={['#1D4ED8', '#22D3EE']}
+                style={tw`flex-1 items-center justify-center p-2`}
+            >
+                <Ionicons name={icon as any} size={20} color="white" style={tw`mb-1`} />
+                <Text style={tw`text-white text-center text-base`}>{label}</Text>
+            </LinearGradient>
+        </TouchableOpacity>
     );
 }

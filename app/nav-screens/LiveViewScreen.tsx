@@ -5,7 +5,7 @@ import tw from 'twrnc';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-export default function LiveViewScreen() {
+const LiveViewScreen = () => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -26,18 +26,28 @@ export default function LiveViewScreen() {
   }
 
   if (hasPermission === null) {
-    return <Text style={tw`text-center text-lg`}>Requesting camera permission...</Text>;
+    return <View style={tw`flex-1 justify-center`}>
+      <Text style={tw`text-center text-lg`}>Requesting camera permission...</Text>
+    </View>;
   }
 
   if (hasPermission === false) {
-    return <Text style={tw`text-center text-red-500 text-lg`}>Camera access denied. Please enable it in settings.</Text>;
+    return <View style={tw`flex-1 justify-center`}>
+      <Text style={tw`text-center text-red-500 text-lg`}>
+        Camera access denied. Please enable it in settings.
+      </Text>
+    </View>;
   }
 
   return (
     <View style={tw`flex-1`}>
       <StatusBar style="auto" />
-      <Camera style={tw`flex-1`} />
-      
+      <Camera 
+        style={tw`flex-1`}
+        type={Camera.Constants.Type.back}
+      />
     </View>
   );
-}
+};
+
+export default LiveViewScreen;
