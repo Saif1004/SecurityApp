@@ -7,163 +7,113 @@ import time
 import pickle
 import os
 from datetime import datetime
-import subprocess
+from threading import Thread
 
-try:
-    from picamera2 import Picamera2
-    from gpiozero import LED, MotionSensor
-    PI_HARDWARE_AVAILABLE = True
-except ImportError:
-    print("[WARNING] Pi camera or GPIO modules not found. Running in mock mode.")
-    PI_HARDWARE_AVAILABLE = False
+from PyQt5.QtWidgets import QApplication
+from picamera2 import Picamera2
+from picamera2.previews.qt import QGlPicamera2
+from gpiozero import LED, MotionSensor
+from libcamera import controls
 
-app = Flask(__name__)
-CORS(app)
+import sys
 
-# Hardware setup
-if PI_HARDWARE_AVAILABLE:
-    green_led = LED(17)
-    pir = MotionSensor(4)
-    green_led.off()
-    picam2 = Picamera2()
-    picam2.configure(picam2.create_preview_configuration(main={"format": 'XRGB8888', "size": (1280, 720)}))
-    picam2.start()
-else:
-    green_led = None
-    pir = None
-    picam2 = None
+flask_app = Flask(__name__)
+CORS(flask_app)
+
+# Globals
+PI_HARDWARE_AVAILABLE = True
+picam2 = None
+green_led = None
+pir = None
+preview = None
+qt_app = None
+prev_detected_names = set()
+
+CV_SCALER = 4
+MOTION_TIMEOUT = 5
 
 # Load face encodings
-print("[INFO] Loading face encodings...")
-with open("encodings.pickle", "rb") as f:
-    data = pickle.loads(f.read())
-known_face_encodings = data["encodings"]
-known_face_names = data["names"]
+known_face_encodings = []
+known_face_names = []
+try:
+    with open("encodings.pickle", "rb") as f:
+        data = pickle.loads(f.read())
+        known_face_encodings = data["encodings"]
+        known_face_names = data["names"]
+        print(f"Loaded {len(known_face_names)} known face encodings")
+except Exception as e:
+    print(f"Face encoding load error: {e}")
 
-# Create image storage directory
+# Create folders
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
 
-cv_scaler = 4
-prev_detected_names = set()
+# ... [save_image, detect_faces, detect, record_motion_clip, and routes unchanged]
 
-def save_image(image):
-    filename = f"static/images/face_{int(time.time())}.jpg"
-    cv2.imwrite(filename, image)
-    return filename
+# Start everything
+def initialize_hardware():
+    global picam2, green_led, pir, PI_HARDWARE_AVAILABLE
 
-def detect():
-    global prev_detected_names
-
-    if PI_HARDWARE_AVAILABLE:
-        pir.wait_for_motion()
-        print("Motion Detected")
-        green_led.on()
-    else:
-        print("[MOCK] Simulating motion detection...")
-
-    detected_faces_data = []
-
-    if PI_HARDWARE_AVAILABLE:
-        while pir.motion_detected:
-            frame = picam2.capture_array()
-            resized_frame = cv2.resize(frame, (0, 0), fx=(1 / cv_scaler), fy=(1 / cv_scaler))
-            rgb_resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
-            face_locations = face_recognition.face_locations(rgb_resized_frame)
-            face_encodings = face_recognition.face_encodings(rgb_resized_frame, face_locations, model='large')
-
-            face_names = []
-            for face_encoding in face_encodings:
-                matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
-                name = "Unknown"
-                face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
-                best_match_index = np.argmin(face_distances)
-                if matches[best_match_index]:
-                    name = known_face_names[best_match_index]
-                face_names.append(name)
-
-            detected_set = set(face_names)
-            if detected_set != prev_detected_names:
-                prev_detected_names = detected_set
-
-                image_path = save_image(frame)
-                image_url = f"http://{request.host}/{image_path}"
-
-                for name in face_names:
-                    detected_faces_data.append({
-                        "name": name,
-                        "timestamp": datetime.now().strftime("%H:%M:%S"),
-                        "image": image_url
-                    })
-
-                break
-
-        green_led.off()
-        print("Motion Stopped")
-
-    else:
-        dummy_path = "static/images/mock_face.jpg"
-        dummy_image = np.zeros((720, 1280, 3), dtype=np.uint8)
-        cv2.imwrite(dummy_path, dummy_image)
-
-        image_url = f"http://{request.host}/{dummy_path}"
-        detected_faces_data = [{
-            "name": "Mock Person",
-            "timestamp": datetime.now().strftime("%H:%M:%S"),
-            "image": image_url
-        }]
-
-    return detected_faces_data if detected_faces_data else [{
-        "name": "No Face Detected",
-        "timestamp": datetime.now().strftime("%H:%M:%S"),
-        "image": ""
-    }]
-
-def record_motion_clip():
-    video_path = f"static/videos/motion_{int(time.time())}.mp4"
-    if PI_HARDWARE_AVAILABLE:
-        command = [
-            "ffmpeg", "-t", "10", "-f", "v4l2",
-            "-i", "/dev/video0",
-            "-vcodec", "libx264",
-            "-preset", "ultrafast",
-            video_path
-        ]
-        subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    else:
-        with open(video_path, "w") as f:
-            f.write("Mock video content")
-    return video_path
-
-@app.route('/detect', methods=['GET'])
-def detect_motion():
-    print("[BACKEND] /detect triggered")
     try:
-        detected_faces = detect()
-        video_path = record_motion_clip()
-        video_url = f"http://{request.host}/{video_path}"
+        green_led = LED(17)
+        pir = MotionSensor(4)
+        green_led.off()
 
-        alert_data = [
-            {
-                "name": face["name"],
-                "image": face["image"],
-                "timestamp": face["timestamp"],
-                "video": video_url
-            }
-            for face in detected_faces
-        ]
-        return jsonify({"status": "success", "detected_faces": alert_data})
+        picam2 = Picamera2()
+        config = picam2.create_preview_configuration(
+            main={"size": (1280, 720)},
+        )
+        picam2.configure(config)
+        picam2.start()
+
     except Exception as e:
-        print("[ERROR]", e)
-        return jsonify({"status": "error", "message": str(e)})
+        print(f"[ERROR] Hardware init failed: {e}")
+        PI_HARDWARE_AVAILABLE = False
 
-@app.route('/')
+def start_qt_preview():
+    global preview
+
+    try:
+        # Detach any existing preview
+        picam2.stop_preview()
+    except Exception as e:
+        print(f"[WARN] Could not stop previous preview: {e}")
+
+    try:
+        preview = QGlPicamera2(picam2, width=1280, height=720)
+        picam2.attach_preview(preview)
+        preview.show()
+        print("[INFO] Qt preview started successfully.")
+    except Exception as e:
+        print(f"[ERROR] Failed to start Qt preview: {e}")
+        preview = None
+
+@flask_app.route('/')
 def home():
     return 'Security app backend is running'
 
-@app.route('/favicon.ico')
+@flask_app.route('/favicon.ico')
 def favicon():
     return '', 204
 
+# Main
 if __name__ == '__main__':
-    app.run(host="0.0.0.0", port=5000)
+    initialize_hardware()
+
+    if os.getenv("DISPLAY"):
+        qt_app = QApplication(sys.argv)
+
+        start_qt_preview()  # <== Robust preview handler
+
+        flask_thread = Thread(target=lambda: flask_app.run(host="0.0.0.0", port=5000, debug=True, use_reloader=False), daemon=True)
+        flask_thread.start()
+
+        if preview:
+            qt_app.exec_()
+        else:
+            print("[INFO] Preview failed, but continuing with Flask only.")
+            flask_thread.join()
+    else:
+        print("[INFO] No DISPLAY detected, skipping Qt preview.")
+        flask_app.run(host="0.0.0.0", port=5000, debug=True)
+

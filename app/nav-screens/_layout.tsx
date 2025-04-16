@@ -1,3 +1,5 @@
+// Add this at the very top of your entry file (before any other imports)
+
 // app/_layout.tsx
 import { Stack } from 'expo-router';
 
