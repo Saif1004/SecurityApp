@@ -10,7 +10,7 @@ import {
 import tw from 'twrnc';
 import { router } from 'expo-router';
 
-const API_URL = 'https://b7f8-77-100-167-19.ngrok-free.app/detect'; 
+const API_URL = 'https://f600-77-100-167-19.ngrok-free.app/detect'; 
 
 export default function AlertScreen() {
   const [alerts, setAlerts] = useState([]);
