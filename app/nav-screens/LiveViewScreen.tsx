@@ -1,50 +1,51 @@
+import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
-import React, { useState, useEffect } from 'react';
-import { Camera } from 'expo-camera';
+import { WebView } from 'react-native-webview';
 import tw from 'twrnc';
-import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
+const NGROK_URL = 'https://your-ngrok-url.ngrok.io'; // Replace with your HTTPS URL
+
 const LiveViewScreen = () => {
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
+  const [serverUp, setServerUp] = useState(false);
 
   useEffect(() => {
-    (async () => {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setHasPermission(status === 'granted');
-      setLoading(false);
-    })();
+    fetch(`${NGROK_URL}/`)
+      .then(res => {
+        if (res.ok) setServerUp(true);
+      })
+      .catch(() => setServerUp(false))
+      .finally(() => setLoading(false));
   }, []);
 
   if (loading) {
     return (
-      <View style={tw`flex-1 items-center justify-center`}>
+      <View style={tw`flex-1 justify-center items-center`}>
         <ActivityIndicator size="large" color="#00ff00" />
       </View>
     );
   }
 
-  if (hasPermission === null) {
-    return <View style={tw`flex-1 justify-center`}>
-      <Text style={tw`text-center text-lg`}>Requesting camera permission...</Text>
-    </View>;
-  }
-
-  if (hasPermission === false) {
-    return <View style={tw`flex-1 justify-center`}>
-      <Text style={tw`text-center text-red-500 text-lg`}>
-        Camera access denied. Please enable it in settings.
-      </Text>
-    </View>;
+  if (!serverUp) {
+    return (
+      <View style={tw`flex-1 justify-center items-center`}>
+        <Text style={tw`text-red-500 text-center text-lg`}>
+          Could not connect to Pi server. Is ngrok running?
+        </Text>
+      </View>
+    );
   }
 
   return (
     <View style={tw`flex-1`}>
       <StatusBar style="auto" />
-      <Camera 
+      <WebView 
+        source={{ uri: `${NGROK_URL}/video_feed` }}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        allowsInlineMediaPlayback
         style={tw`flex-1`}
-        type={Camera.Constants.Type.back}
       />
     </View>
   );
