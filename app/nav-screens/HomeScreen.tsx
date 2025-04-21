@@ -1,20 +1,19 @@
 import { ScrollView, View, Text, Image, TouchableOpacity, Alert } from 'react-native';
-import React, { useEffect, useState } from 'react';
-import tw from 'twrnc';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import AegisShield from '../../assets/images/Aegis-Shield.png';
-import auth from '@react-native-firebase/auth';
-import { useAuth } from '../Authprovider';
+import tw from 'twrnc';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuth } from '../Authprovider';
+import React, { useState, useEffect } from 'react';
+import auth from '@react-native-firebase/auth';
 
-export default function AlertHomeScreen() {
-  const { user } = useAuth();
+export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
   const [time, setTime] = useState(new Date());
   const [activeBox, setActiveBox] = useState<string | null>(null);
-  const time2 = '16:00';
 
+  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -22,10 +21,7 @@ export default function AlertHomeScreen() {
 
   const handlePress = (screen: string) => {
     setActiveBox(screen);
-    setTimeout(() => {
-      setActiveBox(null);
-      router.push(screen); // ✅ Correct usage here
-    }, 500);
+    router.push(`/nav-screens/${screen}`);
   };
 
   const signOutUser = async () => {
@@ -36,31 +32,33 @@ export default function AlertHomeScreen() {
     try {
       await auth().signOut();
       router.replace('/sign-in');
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Sign-out failed', error.message);
     }
   };
 
   return (
     <ScrollView contentContainerStyle={tw`flex-1 px-6 pt-2 pb-4 bg-gray-50`}>
-      {/* Header */}
+      {/* Header with time */}
       <View style={tw`flex-row justify-between items-center mt-4`}>
         <View style={tw`flex-row items-center`}>
-          <Image source={AegisShield} style={tw`w-12 h-12 rounded-full mr-3 ml-2`} />
+          <Image 
+            source={require('../../assets/images/Aegis-Shield.png')} 
+            style={tw`w-12 h-12 rounded-full mr-3 ml-2`} 
+          />
           <View>
             <Text style={tw`text-black text-base font-bold`}>Hello, {user?.email}!</Text>
-            <Text style={tw`text-gray-600 mt-1 text-sm`}>{time.toLocaleString()}</Text>
+            <Text style={tw`text-gray-600 mt-1 text-sm`}>
+              {time.toLocaleDateString()} {time.toLocaleTimeString()}
+            </Text>
           </View>
         </View>
-        <TouchableOpacity onPress={() => router.push('Settings')} style={tw`mr-4`}>
-          <Ionicons name="settings-outline" size={24} color="black" />
-        </TouchableOpacity>
       </View>
 
-      <View style={tw`w-77 h-0.5 bg-gray-300 mt-4 ml-2`} />
-      <Text style={tw`text-gray-600 text-center mt-4`}>The kids arrived home at {time2}h</Text>
+      {/* Divider line */}
+      <View style={tw`w-full h-0.5 bg-gray-300 mt-4`} />
 
-      {/* Grid */}
+      {/* Grid buttons */}
       <View style={tw`w-full mt-6`}>
         <View style={tw`flex-row justify-between mb-3`}>
           <GridItem
@@ -92,7 +90,7 @@ export default function AlertHomeScreen() {
         </View>
       </View>
 
-      {/* Logout Button */}
+      {/* Logout button */}
       <View style={tw`mt-6 mb-4 items-center`}>
         <TouchableOpacity
           onPress={signOutUser}
@@ -101,13 +99,6 @@ export default function AlertHomeScreen() {
           <Text style={tw`text-white text-lg text-center`}>Log Out</Text>
         </TouchableOpacity>
       </View>
-
-      {/* Floating Add Button */}
-      <TouchableOpacity
-        style={tw`absolute bottom-20 right-6 w-12 h-12 bg-white rounded-full shadow-lg items-center justify-center`}
-      >
-        <Ionicons name="add" size={24} color="black" />
-      </TouchableOpacity>
     </ScrollView>
   );
 }
@@ -118,26 +109,23 @@ function GridItem({
   onPress,
   icon,
   label,
-}: {
-  active: boolean;
-  onPress: () => void;
-  icon: string;
-  label: string;
+}: { 
+  active: boolean; 
+  onPress: () => void; 
+  icon: string; 
+  label: string 
 }) {
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[
-        tw`w-[48%] aspect-square rounded-2xl overflow-hidden`,
-        active ? tw`bg-white` : null,
-      ]}
+      style={[tw`w-[48%] aspect-square rounded-2xl overflow-hidden`, active ? tw`bg-white` : null]}
     >
       <LinearGradient
         colors={['#1D4ED8', '#22D3EE']}
         style={tw`flex-1 items-center justify-center p-2`}
       >
-        <Ionicons name={icon as any} size={20} color="white" style={tw`mb-1`} />
-        <Text style={tw`text-white text-center text-base`}>{label}</Text>
+        <Ionicons name={icon as any} size={24} color="white" style={tw`mb-2`} />
+        <Text style={tw`text-white text-center text-base font-medium`}>{label}</Text>
       </LinearGradient>
     </TouchableOpacity>
   );
