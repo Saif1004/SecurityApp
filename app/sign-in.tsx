@@ -1,171 +1,99 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
-<<<<<<< Updated upstream
-import {ScrollView, View, Image, Text, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Button, ActivityIndicator,
-    TextInput} from 'react-native';
+import {
+    ScrollView,
+    View,
+    Image,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    Button,
+    TextInput,
+    ActivityIndicator,
+    Alert,
+} from 'react-native';
 import tw from 'twrnc';
 import AegisShield from '../assets/images/Aegis-Shield.png';
 import google from '../assets/images/google.png';
-import {FirebaseError} from "@firebase/util";
-import { auth } from './firebase';
-import {signInWithEmailAndPassword} from "@firebase/auth";
+import { useAuth } from './Authprovider';
+import auth from '@react-native-firebase/auth';
 
 
-export default function SignIn  ()  {
-    const handleLogin = () => {};
+
+export default function SignIn() {
     const router = useRouter();
+    const { user } = useAuth();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
 
+    // Handle navigation when user is authenticated
+    useEffect(() => {
+        if (user) {
+            router.replace('/nav-screens/HomeScreen');
+        }
+    }, [user]);
 
-    const signIn = async () => {
+
+    const handleEmailSignIn = async () => {
         setLoading(true);
         try {
-            await signInWithEmailAndPassword(auth, email, password);
-        } catch (e: any) {
-            const err = e as FirebaseError;
-            alert('Sign in failed: ' + err.message);
+            await auth().signInWithEmailAndPassword(email, password);
+        } catch (error) {
+            Alert.alert('Sign in failed', error.message);
         } finally {
             setLoading(false);
         }
     };
-=======
-import { ScrollView, View, Image, Text, TouchableOpacity, Alert } from 'react-native';
-import AegisShield from '../assets/images/Aegis-Shield.png'; // Corrected path
-import google from '../assets/images/google.png'; // Corrected path
-import { login } from '@/lib/appwrite'; // Ensure this import is correctly pointing to your Appwrite setup
 
-const SignIn = () => {
-  const router = useRouter();
->>>>>>> Stashed changes
+    // Don't return null anymore - let useEffect handle the navigation
+    return (
+        <ScrollView contentContainerStyle={tw`flex-1 justify-center items-center bg-white px-4`}>
+            <Image source={AegisShield} style={tw`w-60 h-60`} resizeMode="contain" />
 
-  const handleLogin = async () => {
-    try {
-      const result = await login();
-      if (result) {
-        console.log('Successfully logged in');
-      } else {
-        Alert.alert('Error', 'Failed to log in');
-      }
-    } catch (error) {
-      Alert.alert('Login Error');
-    }
-  };
+            <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>Aegis Security Systems</Text>
 
-<<<<<<< Updated upstream
-            <View style={tw`w-full p-4`}>
-                <Text
-                    onPress={() => router.push('/home')}
-                    style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
-                >
-                    home temp button
-                </Text>
-            </View>
-            
-            <Text style={tw`text-3xl font-bold text-gray-800 mt-4`}>
-                Aegis Security Systems
-            </Text>
-=======
-  return (
-    // Added <View> as the root parent component
-    <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle="flex-1 justify-center items-center bg-white px-4">
-        <Image source={AegisShield} style={{ width: 60, height: 60 }} resizeMode="contain" />
->>>>>>> Stashed changes
-
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-        <Text style="text-3xl font-bold text-gray-800 mt-4">Aegis Security Systems</Text>
-=======
-            <View style={tw`flex-0.2`} />
->>>>>>> parent of e526914 (Revert "adjusted sign in and sign up")
-=======
-            <View style={tw`flex-0.2`} />
->>>>>>> parent of e526914 (Revert "adjusted sign in and sign up")
-=======
-=======
->>>>>>> parent of e5fa775 (adjusted sign in and sign up)
-            <TouchableOpacity
-                onPress={handleLogin}
-                style={tw`flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5`}>
-                    <Image source ={google}
-                           style={tw`w-5 h-5 mr-3`}
-                           resizeMode="contain"
-                    />
-                    <Text style={tw`text-lg font-rubik text-black-300`}>
-                        Continue with Google
-                    </Text>
-            </TouchableOpacity>
-            <View style={tw`flex-1`} />
-<<<<<<< HEAD
->>>>>>> parent of e5fa775 (adjusted sign in and sign up)
-=======
->>>>>>> parent of e5fa775 (adjusted sign in and sign up)
-
-<<<<<<< Updated upstream
             <View style={styles.container}>
-                <KeyboardAvoidingView behavior="padding">
-                    <TextInput
-                        style={styles.input}
-                        value={email}
-                        onChangeText={setEmail}
-                        autoCapitalize="none"
-                        keyboardType="email-address"
-                        placeholder="Email"
-                    />
-                    <TextInput
-                        style={styles.input}
-                        value={password}
-                        onChangeText={setPassword}
-                        secureTextEntry
-                        placeholder="Password"
-                    />
-                    {loading ? (
-                        <ActivityIndicator size={'small'} style={{ margin: 28 }} />
-                    ) : (
-                        <>
-                            <Button onPress={signIn} title="Login" />
-                        </>
-                    )}
-                </KeyboardAvoidingView>
+                <TextInput
+                    placeholder="Email"
+                    value={email}
+                    onChangeText={setEmail}
+                    style={styles.input}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                />
+                <TextInput
+                    placeholder="Password"
+                    value={password}
+                    onChangeText={setPassword}
+                    style={styles.input}
+                    secureTextEntry
+                />
+                {loading ? (
+                    <ActivityIndicator size="large" color="#0000ff" />
+                ) : (
+                    <Button onPress={handleEmailSignIn} title="Login" />
+                )}
             </View>
 
-            <View style={tw`flex-1`} />
 
-            <View style={tw`w-full p-4`}>
+            <View style={tw`w-full p-4 mt-5`}>
                 <Text
                     onPress={() => router.push('/sign-up')}
                     style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
                 >
                     Go to Sign Up
                 </Text>
-
             </View>
         </ScrollView>
     );
-=======
-        <TouchableOpacity
-          onPress={handleLogin}
-          style="flex-row items-center justify-center bg-white shadow-md shadow-zinc-300 rounded-full w-full py-4 mt-5"
-        >
-          <Image source={google} style={{ width: 30, height: 30, marginRight: 10 }} resizeMode="contain" />
-          <Text style="text-lg font-[Rubik] text-black-300">Continue with Google</Text>
-        </TouchableOpacity>
+}
 
-        <View style="w-full p-4" />
-      </ScrollView>
-    </View>
-  );
->>>>>>> Stashed changes
-};
 const styles = StyleSheet.create({
     container: {
         marginHorizontal: 20,
         flex: 1,
-        justifyContent: 'center'
+        justifyContent: 'center',
     },
     input: {
         marginVertical: 4,
@@ -173,8 +101,7 @@ const styles = StyleSheet.create({
         width: 300,
         borderWidth: 1,
         borderRadius: 4,
-        padding: 5,
-        backgroundColor: '#fff'
-    }
+        padding: 10,
+        backgroundColor: '#fff',
+    },
 });
-

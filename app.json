@@ -47,7 +47,8 @@
             "useFrameworks": "static"
           }
         }
-      ]
+      ],
+      "react-native-video"
     ],
     "experiments": {
       "typedRoutes": true

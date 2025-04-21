@@ -1,19 +1,54 @@
-import { ScrollView, View, Text, Image, Pressable } from 'react-native';
-import * as React from 'react';
+import React, { useEffect, useState } from 'react';
+import { View, Text, ActivityIndicator } from 'react-native';
+import { WebView } from 'react-native-webview';
 import tw from 'twrnc';
-import AegisShield from '../assets/images/Aegis-Shield.png';
-import {router, useRouter} from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 
-export default function LiveViewScreen() {
+const NGROK_URL = 'https://f600-77-100-167-19.ngrok-free.app'; // Replace with your HTTPS URL
+
+const LiveViewScreen = () => {
+  const [loading, setLoading] = useState(true);
+  const [serverUp, setServerUp] = useState(false);
+
+  useEffect(() => {
+    fetch(`${NGROK_URL}/`)
+      .then(res => {
+        if (res.ok) setServerUp(true);
+      })
+      .catch(() => setServerUp(false))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={tw`flex-1 justify-center items-center`}>
+        <ActivityIndicator size="large" color="#00ff00" />
+      </View>
+    );
+  }
+
+  if (!serverUp) {
+    return (
+      <View style={tw`flex-1 justify-center items-center`}>
+        <Text style={tw`text-red-500 text-center text-lg`}>
+          Could not connect to Pi server. Is ngrok running?
+        </Text>
+      </View>
+    );
+  }
+
   return (
-    <View style={tw`w-full p-4`}>
-      <Text
-        onPress={() => router.push('/nav-screens/HomeScreen')}
-        style={tw`bg-blue-600 text-white text-center py-3 rounded-lg`}
-      >
-        this is live view
-      </Text>
+    <View style={tw`flex-1`}>
+      <StatusBar style="auto" />
+      <WebView
+        source={{ uri: `${NGROK_URL}/video_feed` }}
+        originWhitelist={['*']}
+        javaScriptEnabled
+        allowsInlineMediaPlayback
+        style={tw`flex-1`}
+      />
     </View>
   );
-}
+};
+
+export default LiveViewScreen;
