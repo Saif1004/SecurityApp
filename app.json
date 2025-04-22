@@ -23,8 +23,12 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
-      ]
+        "android.permission.RECORD_AUDIO",
+        "android.permission.VIBRATE",
+        "com.google.android.c2dm.permission.RECEIVE",
+        "android.permission.RECEIVE_BOOT_COMPLETED"
+      ],
+      "useNextNotificationsApi": true
     },
     "web": {
       "bundler": "metro",
@@ -36,6 +40,7 @@
       "@react-native-firebase/auth",
       "expo-router",
       "expo-camera",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {

@@ -1,20 +1,48 @@
-import { View } from 'react-native';
 import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { Video } from 'expo-av';
 import { useLocalSearchParams } from 'expo-router';
-import Video from 'react-native-video';
-import tw from 'twrnc';
 
 export default function VideoScreen() {
-  const { videoUrl } = useLocalSearchParams();
+  const { videoUrl, name, timestamp } = useLocalSearchParams();
+
+  const fullUrl = videoUrl.startsWith('http')
+    ? videoUrl
+    : `https://09a2-77-100-167-19.ngrok-free.app${videoUrl}`;
 
   return (
-    <View style={tw`flex-1 bg-black justify-center items-center`}>
+    <View style={styles.container}>
+      <Text style={styles.header}>
+        {name} - {new Date(timestamp).toLocaleString()}
+      </Text>
       <Video
-        source={{ uri: videoUrl }}
-        style={tw`w-full h-full`}
-        controls
+        source={{ uri: fullUrl }}
+        rate={1.0}
+        volume={1.0}
+        isMuted={false}
         resizeMode="contain"
+        useNativeControls
+        shouldPlay
+        style={styles.video}
       />
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+    paddingTop: 50
+  },
+  header: {
+    color: 'white',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 10
+  },
+  video: {
+    flex: 1,
+    width: '100%'
+  }
+});
