@@ -15,7 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 
-const API_URL = 'https://09a2-77-100-167-19.ngrok-free.app/detect';
+const API_URL = 'https://c73c-77-100-167-19.ngrok-free.app/detect';
 
 export default function AlertScreen() {
   const [alerts, setAlerts] = useState([]);
