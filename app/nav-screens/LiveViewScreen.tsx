@@ -4,7 +4,7 @@ import { WebView } from 'react-native-webview';
 import tw from 'twrnc';
 import { StatusBar } from 'expo-status-bar';
 
-const NGROK_URL = 'https://09a2-77-100-167-19.ngrok-free.app'; // Replace with your HTTPS URL
+const NGROK_URL = 'https://c73c-77-100-167-19.ngrok-free.app'; // Replace with your HTTPS URL
 
 const LiveViewScreen = () => {
   const [loading, setLoading] = useState(true);

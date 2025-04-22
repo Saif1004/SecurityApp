@@ -1,0 +1,5 @@
+Looking in indexes: https://pypi.org/simple, https://www.piwheels.org/simple
+Collecting Click
+  Using cached https://www.piwheels.org/simple/click/click-8.1.8-py3-none-any.whl (98 kB)
+Installing collected packages: Click
+Successfully installed Click-8.1.8
