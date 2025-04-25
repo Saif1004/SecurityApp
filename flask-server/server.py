@@ -156,17 +156,22 @@ def view():
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
         <link rel="icon" href="/favicon.ico" />
         <style>
-          body {
+          body, html {
             margin: 0;
             padding: 0;
             background: black;
-            overflow: hidden;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
           img {
-            width: 100vw;
-            height: 100vh;
-            object-fit: cover;
-            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
           }
         </style>
       </head>
