@@ -8,7 +8,7 @@ export default function VideoScreen() {
 
   const fullUrl = videoUrl.startsWith('http')
     ? videoUrl
-    : `https://28bd-77-100-167-19.ngrok-free.app${videoUrl}`;
+    : `https://cerberus.ngrok.dev${videoUrl}`;
 
   return (
     <View style={styles.container}>
