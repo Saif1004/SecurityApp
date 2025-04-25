@@ -41,21 +41,21 @@ except Exception as e:
 # Ensure folders exist
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
-os.makedirs("static", exist_ok=True)  # for favicon
+os.makedirs("static", exist_ok=True)
 
-# Add a basic favicon
+# Favicon
 with open("static/favicon.ico", "wb") as f:
     f.write(bytes.fromhex(
         "00000100010010101000000000006804000016000000280000001000000020000000010004000000000040000000000000000000000000000000000000000000000000000000000000FFFFFF0000000000"
     ))
 
-# Initialize Pi camera
+# Camera setup
 def initialize_hardware():
     global picam2, PI_HARDWARE_AVAILABLE
     try:
         from picamera2 import Picamera2
         picam2 = Picamera2()
-        config = picam2.create_preview_configuration(main={"size": (640, 480)})  # Lowered res for performance
+        config = picam2.create_preview_configuration(main={"size": (640, 480)})
         picam2.configure(config)
         picam2.start()
         logger.info("Camera initialized")
@@ -63,7 +63,7 @@ def initialize_hardware():
         logger.error(f"Camera init failed: {e}")
         PI_HARDWARE_AVAILABLE = False
 
-# Save video from buffer
+# Save video
 def save_video_clip(frames, filename="latest.mp4", fps=10):
     height, width, _ = frames[0].shape
     video_path = os.path.join("static/videos", filename)
@@ -73,7 +73,7 @@ def save_video_clip(frames, filename="latest.mp4", fps=10):
     out.release()
     return f"/static/videos/{filename}"
 
-# MJPEG stream
+# MJPEG generator
 def generate_frames():
     global last_encoded_frame
     while True:
@@ -81,26 +81,20 @@ def generate_frames():
             if picam2:
                 frame = picam2.capture_array()
                 frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-                # Cache latest frame for detection thread
                 frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                 with detection_lock:
                     frame_buffer.append(frame_bgr)
-
-                # Encode JPEG
                 ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
                 if ret:
                     last_encoded_frame = buffer.tobytes()
                     yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' +
                            last_encoded_frame + b'\r\n')
-
-            time.sleep(0.1)  # ~10 FPS cap
-
+            time.sleep(0.1)
         except Exception as e:
             logger.error(f"Frame error: {e}")
             time.sleep(1)
 
-# Face detection thread
+# Face detection
 def detect_faces():
     global latest_detections
     while True:
@@ -157,9 +151,27 @@ def video_feed():
 def view():
     return """
     <html>
-      <head><title>Live Feed</title><link rel="icon" href="/favicon.ico" /></head>
-      <body style="margin:0; padding:0; background:black;">
-        <img src="/video_feed" style="width:100%; height:auto;" />
+      <head>
+        <title>Live Feed</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+        <link rel="icon" href="/favicon.ico" />
+        <style>
+          body {
+            margin: 0;
+            padding: 0;
+            background: black;
+            overflow: hidden;
+          }
+          img {
+            width: 100vw;
+            height: 100vh;
+            object-fit: cover;
+            display: block;
+          }
+        </style>
+      </head>
+      <body>
+        <img src="/video_feed" />
       </body>
     </html>
     """
