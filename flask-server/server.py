@@ -16,7 +16,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, resources={r"/detect": {"origins": "*"}, r"/video_feed": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 # Globals
 PI_HARDWARE_AVAILABLE = True
@@ -25,7 +25,7 @@ known_face_encodings = []
 known_face_names = []
 detection_lock = Lock()
 latest_detections = []
-frame_buffer = deque(maxlen=100)  # Buffer ~10 seconds @ 10 FPS
+frame_buffer = deque(maxlen=100)
 
 # Load encodings
 try:
@@ -132,6 +132,17 @@ def home():
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
+@app.route('/view')
+def view():
+    return """
+    <html>
+      <head><title>Live Feed</title></head>
+      <body style="margin:0; padding:0; background:black;">
+        <img src="/video_feed" style="width:100%; height:auto;" />
+      </body>
+    </html>
+    """
+
 @app.route('/detect', methods=['GET'])
 def get_detections():
     with detection_lock:
@@ -139,7 +150,6 @@ def get_detections():
 
 @app.after_request
 def after_request(response):
-    response.headers.add('Content-Type', 'application/json')
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
     return response

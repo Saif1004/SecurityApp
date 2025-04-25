@@ -4,7 +4,7 @@ import { WebView } from 'react-native-webview';
 import tw from 'twrnc';
 import { StatusBar } from 'expo-status-bar';
 
-const NGROK_URL = 'https://cerberus.ngrok.dev'; // Replace with your HTTPS URL
+const NGROK_URL = 'https://cerberus.ngrok.dev'; // Replace with your actual ngrok URL
 
 const LiveViewScreen = () => {
   const [loading, setLoading] = useState(true);
@@ -41,7 +41,7 @@ const LiveViewScreen = () => {
     <View style={tw`flex-1`}>
       <StatusBar style="auto" />
       <WebView
-        source={{ uri: `${NGROK_URL}/video_feed` }}
+        source={{ uri: `${NGROK_URL}/view` }}
         originWhitelist={['*']}
         javaScriptEnabled
         allowsInlineMediaPlayback
