@@ -1,11 +1,12 @@
-import { ScrollView, View, Text, Image, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, Image, TouchableOpacity, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import tw from 'twrnc';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../Authprovider';
 import React, { useState, useEffect } from 'react';
 import auth from '@react-native-firebase/auth';
+import { MotiView } from 'moti';
+import tw from 'twrnc';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -13,7 +14,6 @@ export default function HomeScreen() {
   const [time, setTime] = useState(new Date());
   const [activeBox, setActiveBox] = useState<string | null>(null);
 
-  // Update time every second
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
@@ -38,29 +38,32 @@ export default function HomeScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={tw`flex-1 px-6 pt-2 pb-4 bg-gray-50`}>
-      {/* Header with time */}
-      <View style={tw`flex-row justify-between items-center mt-4`}>
-        <View style={tw`flex-row items-center`}>
-          <Image 
-            source={require('../../assets/images/Aegis-Shield.png')} 
-            style={tw`w-12 h-12 rounded-full mr-3 ml-2`} 
-          />
-          <View>
-            <Text style={tw`text-black text-base font-bold`}>Hello, {user?.email}!</Text>
-            <Text style={tw`text-gray-600 mt-1 text-sm`}>
-              {time.toLocaleDateString()} {time.toLocaleTimeString()}
-            </Text>
-          </View>
+    <View style={tw`flex-1 bg-white pt-10 px-6`}>
+      {/* Header */}
+      <View style={tw`flex-row items-center mb-6`}>
+        <Image 
+          source={require('../../assets/images/Aegis-Shield.png')} 
+          style={tw`w-14 h-14 rounded-full mr-4`} 
+        />
+        <View>
+          <Text style={tw`text-gray-900 text-lg font-bold`}>Hello, {user?.email}!</Text>
+          <Text style={tw`text-gray-500 text-sm mt-1`}>
+            {time.toLocaleDateString()} • {time.toLocaleTimeString()}
+          </Text>
         </View>
       </View>
 
-      {/* Divider line */}
-      <View style={tw`w-full h-0.5 bg-gray-300 mt-4`} />
+      {/* Divider */}
+      <View style={tw`w-full h-0.5 bg-gray-300 mb-6`} />
 
-      {/* Grid buttons */}
-      <View style={tw`w-full mt-6`}>
-        <View style={tw`flex-row justify-between mb-3`}>
+      {/* Main Content */}
+      <MotiView
+        from={{ opacity: 0, translateY: 20 }}
+        animate={{ opacity: 1, translateY: 0 }}
+        transition={{ type: 'timing', duration: 600 }}
+        style={tw`mb-8`}
+      >
+        <View style={tw`flex-row justify-between mb-5`}>
           <GridItem
             active={activeBox === 'AlertScreen'}
             onPress={() => handlePress('AlertScreen')}
@@ -74,6 +77,7 @@ export default function HomeScreen() {
             label="Live View"
           />
         </View>
+
         <View style={tw`flex-row justify-between`}>
           <GridItem
             active={activeBox === 'Lock'}
@@ -88,18 +92,31 @@ export default function HomeScreen() {
             label="Motion Sensor"
           />
         </View>
-      </View>
+      </MotiView>
 
-      {/* Logout button */}
-      <View style={tw`mt-6 mb-4 items-center`}>
+      <TouchableOpacity
+        onPress={() => router.push('/nav-screens/AddFaces')}
+        style={tw`absolute bottom-28 left-6 bg-white w-14 h-14 rounded-full items-center justify-center shadow-lg`}
+      >
+        <Ionicons name="add" size={28} color="#1D4ED8" />
+      </TouchableOpacity>
+
+      <MotiView
+        from={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 500, type: 'spring', damping: 12 }}
+        style={tw`items-center mt-6`}
+      >
         <TouchableOpacity
           onPress={signOutUser}
-          style={tw`bg-red-600 px-6 py-3 rounded-lg w-full max-w-xs`}
+          style={tw`bg-red-600 w-full max-w-xs py-4 rounded-full`}
         >
-          <Text style={tw`text-white text-lg text-center`}>Log Out</Text>
+          <Text style={tw`text-white text-lg font-semibold text-center`}>
+            Log Out
+          </Text>
         </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </MotiView>
+    </View>
   );
 }
 
@@ -118,14 +135,21 @@ function GridItem({
   return (
     <TouchableOpacity
       onPress={onPress}
-      style={[tw`w-[48%] aspect-square rounded-2xl overflow-hidden`, active ? tw`bg-white` : null]}
+      style={[
+        tw`w-[48%] aspect-square rounded-3xl overflow-hidden shadow-md`, 
+        active ? tw`bg-white` : null
+      ]}
     >
       <LinearGradient
         colors={['#1D4ED8', '#22D3EE']}
-        style={tw`flex-1 items-center justify-center p-2`}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={tw`flex-1 items-center justify-center rounded-3xl p-3`}
       >
-        <Ionicons name={icon as any} size={24} color="white" style={tw`mb-2`} />
-        <Text style={tw`text-white text-center text-base font-medium`}>{label}</Text>
+        <Ionicons name={icon as any} size={32} color="white" style={tw`mb-2`} />
+        <Text style={tw`text-white text-base font-semibold text-center`}>
+          {label}
+        </Text>
       </LinearGradient>
     </TouchableOpacity>
   );
