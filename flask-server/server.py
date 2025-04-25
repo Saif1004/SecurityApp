@@ -1,4 +1,4 @@
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, send_from_directory
 from flask_cors import CORS
 import face_recognition
 import cv2
@@ -26,6 +26,7 @@ known_face_names = []
 detection_lock = Lock()
 latest_detections = []
 frame_buffer = deque(maxlen=100)
+last_encoded_frame = None
 
 # Load encodings
 try:
@@ -40,6 +41,13 @@ except Exception as e:
 # Ensure folders exist
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
+os.makedirs("static", exist_ok=True)  # for favicon
+
+# Add a basic favicon
+with open("static/favicon.ico", "wb") as f:
+    f.write(bytes.fromhex(
+        "00000100010010101000000000006804000016000000280000001000000020000000010004000000000040000000000000000000000000000000000000000000000000000000000000FFFFFF0000000000"
+    ))
 
 # Initialize Pi camera
 def initialize_hardware():
@@ -47,7 +55,7 @@ def initialize_hardware():
     try:
         from picamera2 import Picamera2
         picam2 = Picamera2()
-        config = picam2.create_preview_configuration(main={"size": (1280, 720)})
+        config = picam2.create_preview_configuration(main={"size": (640, 480)})  # Lowered res for performance
         picam2.configure(config)
         picam2.start()
         logger.info("Camera initialized")
@@ -67,19 +75,30 @@ def save_video_clip(frames, filename="latest.mp4", fps=10):
 
 # MJPEG stream
 def generate_frames():
+    global last_encoded_frame
     while True:
-        with detection_lock:
-            try:
-                if picam2:
-                    frame = picam2.capture_array()
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    ret, buffer = cv2.imencode('.jpg', frame)
-                    if not ret:
-                        continue
-                    yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            except Exception as e:
-                logger.error(f"Frame error: {e}")
-                time.sleep(1)
+        try:
+            if picam2:
+                frame = picam2.capture_array()
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                # Cache latest frame for detection thread
+                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                with detection_lock:
+                    frame_buffer.append(frame_bgr)
+
+                # Encode JPEG
+                ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+                if ret:
+                    last_encoded_frame = buffer.tobytes()
+                    yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' +
+                           last_encoded_frame + b'\r\n')
+
+            time.sleep(0.1)  # ~10 FPS cap
+
+        except Exception as e:
+            logger.error(f"Frame error: {e}")
+            time.sleep(1)
 
 # Face detection thread
 def detect_faces():
@@ -90,7 +109,9 @@ def detect_faces():
                 frame = picam2.capture_array()
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_bgr = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
-                frame_buffer.append(frame_bgr)
+
+                with detection_lock:
+                    frame_buffer.append(frame_bgr)
 
                 face_locations = face_recognition.face_locations(rgb_frame)
                 face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
@@ -136,12 +157,16 @@ def video_feed():
 def view():
     return """
     <html>
-      <head><title>Live Feed</title></head>
+      <head><title>Live Feed</title><link rel="icon" href="/favicon.ico" /></head>
       <body style="margin:0; padding:0; background:black;">
         <img src="/video_feed" style="width:100%; height:auto;" />
       </body>
     </html>
     """
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/detect', methods=['GET'])
 def get_detections():
