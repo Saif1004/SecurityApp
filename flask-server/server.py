@@ -36,7 +36,7 @@ LOCK_GPIO_PIN = 18
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 0)  # Default Locked
+GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH = Locked
 
 # Push notifications
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
@@ -74,9 +74,9 @@ def initialize_hardware():
 # Solenoid Lock control
 def unlock_lock_for_seconds(seconds=5):
     logger.info(f"Unlocking lock for {seconds} seconds")
-    GPIO.output(LOCK_GPIO_PIN, 1)  # Unlock
+    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = Unlock
     time.sleep(seconds)
-    GPIO.output(LOCK_GPIO_PIN, 0)  # Lock again
+    GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH = Lock
     logger.info("Lock re-locked")
 
 # Save video
@@ -89,10 +89,12 @@ def save_video_clip(frames, filename="latest.mp4", fps=10):
     out.release()
     return f"/static/videos/{filename}"
 
-# Separate Motion Detection
+# Motion Detection
 def detect_motion():
     global latest_detections
     last_frame_gray = None
+    last_motion_time = 0
+    cooldown_seconds = 10  # 🕑 Cooldown between motion events
 
     while True:
         if picam2 and PI_HARDWARE_AVAILABLE:
@@ -116,7 +118,10 @@ def detect_motion():
 
                 last_frame_gray = gray_frame
 
-                if motion_detected:
+                now = time.time()
+                if motion_detected and (now - last_motion_time) > cooldown_seconds:
+                    last_motion_time = now
+
                     timestamp = datetime.now().isoformat()
                     img_filename = f"static/images/{timestamp.replace(':', '-')}.jpg"
                     cv2.imwrite(img_filename, frame_bgr)
@@ -135,14 +140,14 @@ def detect_motion():
                         latest_detections = [detection_entry] + latest_detections
                         latest_detections = latest_detections[:50]
 
-                    logger.info(f"Motion detected at {timestamp}")
+                    logger.info(f"Motion detected at {timestamp} (cooldown enforced)")
 
             except Exception as e:
                 logger.error(f"Motion detection error: {e}")
 
-        time.sleep(1)
+        time.sleep(0.5)
 
-# Separate Face Recognition
+# Face Recognition
 def detect_faces():
     while True:
         if picam2 and PI_HARDWARE_AVAILABLE:
@@ -175,7 +180,7 @@ def detect_faces():
                             "name": name,
                             "timestamp": timestamp,
                             "image": f"/{img_filename}",
-                            "video": None  # Face detection doesn't save video
+                            "video": None
                         }
                         send_push_notification(EXPO_DEVICE_PUSH_TOKEN, detection_entry)
 
@@ -184,7 +189,7 @@ def detect_faces():
 
         time.sleep(2)
 
-# Push notification
+# Push Notification
 def send_push_notification(expo_push_token, alert):
     message = {
         'to': expo_push_token,
@@ -199,7 +204,7 @@ def send_push_notification(expo_push_token, alert):
     except Exception as e:
         logger.error(f"Push notification error: {e}")
 
-# API Routes
+# Routes
 @app.route('/')
 def home():
     return 'Face & Motion Detection System'
@@ -207,6 +212,29 @@ def home():
 @app.route('/video_feed')
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/view')
+def view():
+    return """
+    <html>
+      <head>
+        <title>Live Feed</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="icon" href="/favicon.ico" />
+        <style>
+          body, html { margin: 0; padding: 0; background: black; height: 100%; width: 100%; display: flex; justify-content: center; align-items: center; }
+          img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        </style>
+      </head>
+      <body>
+        <img src="/video_feed" />
+      </body>
+    </html>
+    """
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 @app.route('/detect', methods=['GET'])
 def get_detections():
@@ -223,7 +251,6 @@ def register_token():
         return jsonify({"status": "success", "message": "Token registered"})
     return jsonify({"status": "error", "message": "No token provided"}), 400
 
-# 👇 Manual Unlock API (for app remote unlock)
 @app.route('/unlock', methods=['POST'])
 def unlock_door():
     Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
@@ -244,7 +271,7 @@ def generate_frames():
                 if ret:
                     last_encoded_frame = buffer.tobytes()
                     yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + last_encoded_frame + b'\r\n')
-            time.sleep(0.1)
+            time.sleep(0.05)
         except Exception as e:
             logger.error(f"Frame error: {e}")
             time.sleep(1)
