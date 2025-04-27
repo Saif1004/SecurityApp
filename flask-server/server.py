@@ -36,7 +36,7 @@ LOCK_GPIO_PIN = 18
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH = Locked
+GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCKED
 
 # Push notifications
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
@@ -74,9 +74,9 @@ def initialize_hardware():
 # Solenoid Lock control
 def unlock_lock_for_seconds(seconds=5):
     logger.info(f"Unlocking lock for {seconds} seconds")
-    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = Unlock
+    GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH = UNLOCK
     time.sleep(seconds)
-    GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH = Lock
+    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCK
     logger.info("Lock re-locked")
 
 # Save video
@@ -94,7 +94,7 @@ def detect_motion():
     global latest_detections
     last_frame_gray = None
     last_motion_time = 0
-    cooldown_seconds = 10  # 🕑 Cooldown between motion events
+    cooldown_seconds = 10
 
     while True:
         if picam2 and PI_HARDWARE_AVAILABLE:
@@ -140,7 +140,7 @@ def detect_motion():
                         latest_detections = [detection_entry] + latest_detections
                         latest_detections = latest_detections[:50]
 
-                    logger.info(f"Motion detected at {timestamp} (cooldown enforced)")
+                    logger.info(f"Motion detected at {timestamp} (cooldown applied)")
 
             except Exception as e:
                 logger.error(f"Motion detection error: {e}")
