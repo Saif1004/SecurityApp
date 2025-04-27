@@ -262,8 +262,12 @@ def unlock_door():
 
 @app.route('/lock', methods=['POST'])
 def lock_door():
-    lock_immediately()
+    logger.info("Manual lock triggered")
+    GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH for 0.2s
+    time.sleep(0.2)
+    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW to stay locked
     return jsonify({"status": "success", "message": "Door locked"})
+
 
 # Stream frames
 def generate_frames():
