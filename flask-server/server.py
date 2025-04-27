@@ -36,7 +36,7 @@ LOCK_GPIO_PIN = 18
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCKED
+GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCKED at startup
 
 # Push notifications
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
@@ -78,6 +78,10 @@ def unlock_lock_for_seconds(seconds=5):
     time.sleep(seconds)
     GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCK
     logger.info("Lock re-locked")
+
+def lock_immediately():
+    logger.info("Locking door immediately")
+    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCK
 
 # Save video
 def save_video_clip(frames, filename="latest.mp4", fps=10):
@@ -255,6 +259,11 @@ def register_token():
 def unlock_door():
     Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
     return jsonify({"status": "success", "message": "Door unlocked"})
+
+@app.route('/lock', methods=['POST'])
+def lock_door():
+    lock_immediately()
+    return jsonify({"status": "success", "message": "Door locked"})
 
 # Stream frames
 def generate_frames():
