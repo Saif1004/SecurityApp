@@ -1,4 +1,3 @@
-import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Video } from 'expo-av';
 import { useLocalSearchParams } from 'expo-router';
@@ -6,23 +5,14 @@ import { useLocalSearchParams } from 'expo-router';
 export default function VideoScreen() {
   const { videoUrl, name, timestamp } = useLocalSearchParams();
 
-  const fullUrl = videoUrl.startsWith('http')
-    ? videoUrl
-    : `https://cerberus.ngrok.dev${videoUrl}`;
-
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>
-        {name} - {new Date(timestamp).toLocaleString()}
-      </Text>
+      <Text style={styles.title}>{name}</Text>
+      <Text style={styles.timestamp}>{new Date(timestamp).toLocaleString()}</Text>
       <Video
-        source={{ uri: fullUrl }}
-        rate={1.0}
-        volume={1.0}
-        isMuted={false}
-        resizeMode="contain"
+        source={{ uri: `https://cerberus.ngrok.dev${videoUrl}` }}
         useNativeControls
-        shouldPlay
+        resizeMode="contain"
         style={styles.video}
       />
     </View>
@@ -30,19 +20,8 @@ export default function VideoScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-    paddingTop: 50
-  },
-  header: {
-    color: 'white',
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 10
-  },
-  video: {
-    flex: 1,
-    width: '100%'
-  }
+  container: { flex: 1, backgroundColor: 'black', justifyContent: 'center', alignItems: 'center' },
+  title: { color: 'white', fontSize: 24, fontWeight: 'bold', marginBottom: 10 },
+  timestamp: { color: 'gray', marginBottom: 20 },
+  video: { width: '100%', height: 300 },
 });
