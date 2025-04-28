@@ -36,7 +36,7 @@ LOCK_GPIO_PIN = 23
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCKED at startup
+GPIO.output(LOCK_GPIO_PIN, 1S)  # LOW = LOCKED at startup
 
 # Push notifications
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
@@ -74,14 +74,14 @@ def initialize_hardware():
 # Solenoid Lock control
 def unlock_lock_for_seconds(seconds=5):
     logger.info(f"Unlocking lock for {seconds} seconds")
-    GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH = UNLOCK
+    GPIO.output(LOCK_GPIO_PIN, 0)  # HIGH = UNLOCK
     time.sleep(seconds)
-    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCK
+    GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCK
     logger.info("Lock re-locked")
 
 def lock_immediately():
     logger.info("Locking door immediately")
-    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW = LOCK
+    GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCK
 
 # Save video
 def save_video_clip(frames, filename="latest.mp4", fps=10):
