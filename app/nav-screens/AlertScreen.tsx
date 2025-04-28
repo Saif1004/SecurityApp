@@ -70,7 +70,7 @@ export default function AlertScreen() {
       style={styles.alertContainer}
       onPress={() =>
         router.push({
-          pathname: '/VideoScreen',
+          pathname: '/nav-screens/VideoScreen',
           params: {
             videoUrl: item.video,
             name: item.name,
