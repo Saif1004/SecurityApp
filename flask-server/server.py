@@ -36,7 +36,7 @@ LOCK_GPIO_PIN = 23
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 1S)  # LOW = LOCKED at startup
+GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCKED at startup
 
 # Push notifications
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
