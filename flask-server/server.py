@@ -32,7 +32,7 @@ frame_buffer = deque(maxlen=100)
 last_encoded_frame = None
 
 # Solenoid Lock GPIO setup
-LOCK_GPIO_PIN = 25
+LOCK_GPIO_PIN = 16
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
