@@ -35,7 +35,7 @@ const UsersScreen = () => {
               <Image
                 key={i}
                 source={{ uri: `${NGROK_URL}${url}` }}
-                style={tw`w-24 h-24 mr-2 rounded-lg border`}
+                style={tw`w-36 h-36 mr-2 rounded-lg border`}
               />
             ))}
           </ScrollView>
