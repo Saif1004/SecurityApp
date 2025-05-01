@@ -37,7 +37,7 @@ const AddFaces: React.FC = () => {
         value={name}
         onChangeText={setName}
       />
-      <Button title="Capture via Pi Camera" onPress={handleCapture} />
+      <Button title="Capture via Camera" onPress={handleCapture} />
       {message ? <Text style={styles.message}>{message}</Text> : null}
     </View>
   );
