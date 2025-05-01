@@ -10,18 +10,17 @@ import requests
 import RPi.GPIO as GPIO
 from datetime import datetime
 from threading import Thread, Lock
-import logging
 from collections import deque
+from imutils import paths
+import logging
 
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Flask app
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Globals
 PI_HARDWARE_AVAILABLE = True
 picam2 = None
 known_face_encodings = []
@@ -31,33 +30,32 @@ latest_detections = []
 frame_buffer = deque(maxlen=100)
 last_encoded_frame = None
 
-# Solenoid Lock GPIO setup
+# GPIO setup
 LOCK_GPIO_PIN = 16
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCKED at startup
+GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCKED
 
-# Push notifications
+# Push notification
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
 EXPO_DEVICE_PUSH_TOKEN = None
 
-# Load known faces
+# Load encodings
 try:
     with open("encodings.pickle", "rb") as f:
         data = pickle.load(f)
         known_face_encodings = data["encodings"]
         known_face_names = data["names"]
-        logger.info(f"Loaded {len(known_face_names)} face encodings")
+        logger.info(f"Loaded {len(known_face_names)} encodings")
 except Exception as e:
     logger.error(f"Encoding load error: {e}")
 
-# Ensure folders
+# Ensure folders exist
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
-os.makedirs("static", exist_ok=True)
+os.makedirs("dataset", exist_ok=True)
 
-# Camera setup
 def initialize_hardware():
     global picam2, PI_HARDWARE_AVAILABLE
     try:
@@ -71,19 +69,17 @@ def initialize_hardware():
         logger.error(f"Camera init failed: {e}")
         PI_HARDWARE_AVAILABLE = False
 
-# Solenoid Lock control
 def unlock_lock_for_seconds(seconds=5):
     logger.info(f"Unlocking lock for {seconds} seconds")
-    GPIO.output(LOCK_GPIO_PIN, 0)  # HIGH = UNLOCK
+    GPIO.output(LOCK_GPIO_PIN, 0)
     time.sleep(seconds)
-    GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCK
+    GPIO.output(LOCK_GPIO_PIN, 1)
     logger.info("Lock re-locked")
 
 def lock_immediately():
-    logger.info("Locking door immediately")
-    GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCK
+    logger.info("Locking immediately")
+    GPIO.output(LOCK_GPIO_PIN, 1)
 
-# Save video
 def save_video_clip(frames, filename="latest.mp4", fps=10):
     height, width, _ = frames[0].shape
     video_path = os.path.join("static/videos", filename)
@@ -93,7 +89,6 @@ def save_video_clip(frames, filename="latest.mp4", fps=10):
     out.release()
     return f"/static/videos/{filename}"
 
-# Motion Detection
 def detect_motion():
     global latest_detections
     last_frame_gray = None
@@ -141,17 +136,13 @@ def detect_motion():
                     }
 
                     with detection_lock:
-                        latest_detections = [detection_entry] + latest_detections
-                        latest_detections = latest_detections[:50]
+                        latest_detections = [detection_entry] + latest_detections[:49]
 
-                    logger.info(f"Motion detected at {timestamp} (cooldown applied)")
-
+                    logger.info(f"Motion detected at {timestamp}")
             except Exception as e:
                 logger.error(f"Motion detection error: {e}")
-
         time.sleep(0.5)
 
-# Face Recognition
 def detect_faces():
     while True:
         if picam2 and PI_HARDWARE_AVAILABLE:
@@ -166,8 +157,7 @@ def detect_faces():
                     matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.5)
                     name = "Unknown"
                     if True in matches:
-                        first_match_index = matches.index(True)
-                        name = known_face_names[first_match_index]
+                        name = known_face_names[matches.index(True)]
 
                     timestamp = datetime.now().isoformat()
                     img_filename = f"static/images/{timestamp.replace(':', '-')}.jpg"
@@ -187,16 +177,13 @@ def detect_faces():
                             "video": None
                         }
                         send_push_notification(EXPO_DEVICE_PUSH_TOKEN, detection_entry)
-
             except Exception as e:
                 logger.error(f"Face detection error: {e}")
-
         time.sleep(2)
 
-# Push Notification
-def send_push_notification(expo_push_token, alert):
+def send_push_notification(token, alert):
     message = {
-        'to': expo_push_token,
+        'to': token,
         'sound': 'default',
         'title': f'{alert["name"]} Detected!',
         'body': f"At {alert['timestamp']}",
@@ -206,12 +193,11 @@ def send_push_notification(expo_push_token, alert):
         requests.post(EXPO_PUSH_ENDPOINT, json=message)
         logger.info("Push notification sent")
     except Exception as e:
-        logger.error(f"Push notification error: {e}")
+        logger.error(f"Push error: {e}")
 
-# Routes
 @app.route('/')
 def home():
-    return 'Face & Motion Detection System'
+    return 'Face & Motion Detection Server Running'
 
 @app.route('/video_feed')
 def video_feed():
@@ -220,25 +206,14 @@ def video_feed():
 @app.route('/view')
 def view():
     return """
-    <html>
-      <head>
-        <title>Live Feed</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <link rel="icon" href="/favicon.ico" />
-        <style>
-          body, html { margin: 0; padding: 0; background: black; height: 100%; width: 100%; display: flex; justify-content: center; align-items: center; }
-          img { max-width: 100%; max-height: 100%; object-fit: contain; }
-        </style>
-      </head>
-      <body>
-        <img src="/video_feed" />
-      </body>
-    </html>
+    <html><body style="margin:0;background:#000;">
+    <img src="/video_feed" style="width:100vw;height:100vh;object-fit:contain;" />
+    </body></html>
     """
 
 @app.route('/favicon.ico')
 def favicon():
-    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+    return send_from_directory('static', 'favicon.ico')
 
 @app.route('/detect', methods=['GET'])
 def get_detections():
@@ -253,7 +228,7 @@ def register_token():
     if token:
         EXPO_DEVICE_PUSH_TOKEN = token
         return jsonify({"status": "success", "message": "Token registered"})
-    return jsonify({"status": "error", "message": "No token provided"}), 400
+    return jsonify({"status": "error", "message": "No token"}), 400
 
 @app.route('/unlock', methods=['POST'])
 def unlock_door():
@@ -262,31 +237,73 @@ def unlock_door():
 
 @app.route('/lock', methods=['POST'])
 def lock_door():
-    logger.info("Manual lock triggered")
-    GPIO.output(LOCK_GPIO_PIN, 1)  # HIGH for 0.2s
-    time.sleep(0.2)
-    GPIO.output(LOCK_GPIO_PIN, 0)  # LOW to stay locked
+    lock_immediately()
     return jsonify({"status": "success", "message": "Door locked"})
 
+@app.route('/register_face', methods=['POST'])
+def register_face():
+    name = request.form.get('name')
+    files = request.files.getlist('images')
+    if not name or not files:
+        return jsonify({"status": "error", "message": "Name and images required"}), 400
 
-# Stream frames
+    person_folder = os.path.join("dataset", name)
+    os.makedirs(person_folder, exist_ok=True)
+
+    for file in files:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
+        filepath = os.path.join(person_folder, f"{name}_{timestamp}.jpg")
+        file.save(filepath)
+
+    Thread(target=retrain_encodings, daemon=True).start()
+    return jsonify({"status": "success", "message": f"{len(files)} images saved. Training started."})
+
+def retrain_encodings():
+    try:
+        logger.info("Retraining encodings...")
+        imagePaths = list(paths.list_images("dataset"))
+        encodings = []
+        names = []
+
+        for imagePath in imagePaths:
+            name = imagePath.split(os.path.sep)[-2]
+            image = cv2.imread(imagePath)
+            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            boxes = face_recognition.face_locations(rgb, model="hog")
+            new_encodings = face_recognition.face_encodings(rgb, boxes)
+            for enc in new_encodings:
+                encodings.append(enc)
+                names.append(name)
+
+        data = {"encodings": encodings, "names": names}
+        with open("encodings.pickle", "wb") as f:
+            pickle.dump(data, f)
+
+        global known_face_encodings, known_face_names
+        known_face_encodings = data["encodings"]
+        known_face_names = data["names"]
+
+        logger.info("Retraining complete")
+    except Exception as e:
+        logger.error(f"Retraining failed: {e}")
+
 def generate_frames():
     global last_encoded_frame
     while True:
         try:
             if picam2:
                 frame = picam2.capture_array()
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
                 with detection_lock:
                     frame_buffer.append(frame_bgr)
-                ret, buffer = cv2.imencode('.jpg', frame, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+                ret, buffer = cv2.imencode('.jpg', frame_rgb, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
                 if ret:
                     last_encoded_frame = buffer.tobytes()
                     yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + last_encoded_frame + b'\r\n')
             time.sleep(0.05)
         except Exception as e:
-            logger.error(f"Frame error: {e}")
+            logger.error(f"Frame generation error: {e}")
             time.sleep(1)
 
 @app.after_request
@@ -295,7 +312,6 @@ def after_request(response):
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
     return response
 
-# Main
 if __name__ == '__main__':
     initialize_hardware()
     Thread(target=detect_motion, daemon=True).start()
