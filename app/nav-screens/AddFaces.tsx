@@ -1,67 +1,58 @@
 import React, { useState } from 'react';
+import { View, Text, TextInput, Button, Alert, StyleSheet } from 'react-native';
 
 const AddFaces: React.FC = () => {
   const [name, setName] = useState('');
-  const [images, setImages] = useState<FileList | null>(null);
   const [message, setMessage] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (!name || !images || images.length === 0) {
-      setMessage('Please provide a name and at least one image.');
+  const handleCapture = async () => {
+    if (!name) {
+      Alert.alert('Missing Info', 'Please enter a name.');
       return;
     }
 
     const formData = new FormData();
     formData.append('name', name);
-    for (let i = 0; i < images.length; i++) {
-      formData.append('images', images[i]);
-    }
 
     try {
-      const res = await fetch('https://cerberus.ngrok.dev/register_face', {
+      const res = await fetch('https://cerberus.ngrok.dev/capture_face', {
         method: 'POST',
         body: formData,
       });
 
       const data = await res.json();
-      if (data.status === 'success') {
-        setMessage(`✅ ${data.message}`);
-      } else {
-        setMessage(`❌ ${data.message}`);
-      }
+      setMessage(data.message);
     } catch (err) {
       console.error(err);
-      setMessage('Error uploading face data.');
+      setMessage('Error triggering camera.');
     }
   };
 
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Register New Face</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          placeholder="Person's Name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <br />
-        <input
-          type="file"
-          multiple
-          accept="image/*"
-          onChange={(e) => setImages(e.target.files)}
-          required
-        />
-        <br />
-        <button type="submit">Upload & Train</button>
-      </form>
-      <p>{message}</p>
-    </div>
+    <View style={styles.container}>
+      <Text style={styles.heading}>Capture Face using Pi Camera</Text>
+      <TextInput
+        placeholder="Enter name"
+        style={styles.input}
+        value={name}
+        onChangeText={setName}
+      />
+      <Button title="Capture via Pi Camera" onPress={handleCapture} />
+      {message ? <Text style={styles.message}>{message}</Text> : null}
+    </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: { padding: 20 },
+  heading: { fontSize: 22, fontWeight: 'bold', marginBottom: 15 },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 15,
+  },
+  message: { marginTop: 10, color: 'green', fontWeight: '600' },
+});
 
 export default AddFaces;

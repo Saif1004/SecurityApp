@@ -37,7 +37,6 @@ GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
 GPIO.output(LOCK_GPIO_PIN, 1)  # LOW = LOCKED
 
-# Push notification
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
 EXPO_DEVICE_PUSH_TOKEN = None
 
@@ -211,10 +210,6 @@ def view():
     </body></html>
     """
 
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory('static', 'favicon.ico')
-
 @app.route('/detect', methods=['GET'])
 def get_detections():
     with detection_lock:
@@ -257,6 +252,33 @@ def register_face():
 
     Thread(target=retrain_encodings, daemon=True).start()
     return jsonify({"status": "success", "message": f"{len(files)} images saved. Training started."})
+
+@app.route('/capture_face', methods=['POST'])
+def capture_face():
+    name = request.form.get('name')
+    if not name:
+        return jsonify({"status": "error", "message": "Name is required"}), 400
+
+    try:
+        person_folder = os.path.join("dataset", name)
+        os.makedirs(person_folder, exist_ok=True)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
+        filename = f"{name}_{timestamp}.jpg"
+        filepath = os.path.join(person_folder, filename)
+
+        if picam2 and PI_HARDWARE_AVAILABLE:
+            frame = picam2.capture_array()
+            cv2.imwrite(filepath, frame)
+            logger.info(f"Captured image for {name}: {filename}")
+        else:
+            return jsonify({"status": "error", "message": "Camera not available"}), 500
+
+        Thread(target=retrain_encodings, daemon=True).start()
+        return jsonify({"status": "success", "message": f"Photo captured and saved as {filename}."})
+    except Exception as e:
+        logger.error(f"Capture error: {e}")
+        return jsonify({"status": "error", "message": "Failed to capture image"}), 500
 
 def retrain_encodings():
     try:
