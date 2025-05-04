@@ -72,14 +72,20 @@ def initialize_hardware():
 
 def unlock_lock_for_seconds(seconds=5):
     logger.info(f"Unlocking lock for {seconds} seconds")
+    GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
     GPIO.output(LOCK_GPIO_PIN, 0)
     time.sleep(seconds)
     GPIO.output(LOCK_GPIO_PIN, 1)
-    logger.info("Lock re-locked")
+    GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
+    logger.info("Lock re-locked and pin set to INPUT")
 
 def lock_immediately():
     logger.info("Locking immediately")
+    GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
     GPIO.output(LOCK_GPIO_PIN, 1)
+    GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
+    logger.info("Lock set to HIGH and pin set to INPUT")
+
 
 def save_video_clip(frames, filename="latest.mp4", fps=10):
     height, width, _ = frames[0].shape
