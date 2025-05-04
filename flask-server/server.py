@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
+# Global variables
 PI_HARDWARE_AVAILABLE = True
 picam2 = None
 known_face_encodings = []
@@ -30,15 +31,18 @@ latest_detections = []
 frame_buffer = deque(maxlen=100)
 last_encoded_frame = None
 
+# GPIO Setup
 LOCK_GPIO_PIN = 16
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 1)
+GPIO.output(LOCK_GPIO_PIN, 1)  # Ensure lock is locked initially
 
+# Push Notification Setup
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
 EXPO_DEVICE_PUSH_TOKEN = None
 
+# Load encodings
 try:
     with open("encodings.pickle", "rb") as f:
         data = pickle.load(f)
@@ -48,6 +52,7 @@ try:
 except Exception as e:
     logger.error(f"Encoding load error: {e}")
 
+# Ensure directories exist
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
 os.makedirs("dataset", exist_ok=True)
