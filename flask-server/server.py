@@ -17,6 +17,7 @@ import logging
 # Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+os.makedirs("static/videos", exist_ok=True)
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -84,13 +85,26 @@ def lock_immediately():
     logger.info("Lock set to HIGH and pin set to INPUT")
 
 def save_video_clip(frames, filename="latest.mp4", fps=10):
-    height, width, _ = frames[0].shape
-    video_path = os.path.join("static/videos", filename)
-    out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
-    for frame in frames:
-        out.write(frame)
-    out.release()
-    return f"/static/videos/{filename}"
+    try:
+        height, width, _ = frames[0].shape
+        video_path = os.path.join("static/videos", filename)
+        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+        for frame in frames:
+            out.write(frame)
+        out.release()
+
+        # Wait briefly and check if file was successfully written
+        time.sleep(0.2)
+        if os.path.exists(video_path):
+            logger.info(f"Video saved: {video_path}")
+            return f"/static/videos/{filename}"
+        else:
+            logger.error(f"File does not exist after saving: {video_path}")
+            return None
+    except Exception as e:
+        logger.error(f"Error saving video: {e}")
+        return None
+
 
 def detect_motion():
     global latest_detections
