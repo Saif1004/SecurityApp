@@ -5,14 +5,20 @@ import { useLocalSearchParams } from 'expo-router';
 export default function VideoScreen() {
   const { videoUrl, name, timestamp } = useLocalSearchParams();
 
+  const uri = videoUrl?.startsWith('http')
+    ? videoUrl
+    : `https://cerberus.ngrok.dev${videoUrl}`;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{name}</Text>
       <Text style={styles.timestamp}>{new Date(timestamp).toLocaleString()}</Text>
       <Video
-        source={{ uri: `https://cerberus.ngrok.dev${videoUrl}` }}
+        source={{ uri }}
         useNativeControls
         resizeMode="contain"
+        shouldPlay
+        onError={e => console.log('Video error:', e)}
         style={styles.video}
       />
     </View>

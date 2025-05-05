@@ -1,4 +1,4 @@
-from flask import Flask, Response, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 import face_recognition
 import cv2
@@ -36,13 +36,11 @@ LOCK_GPIO_PIN = 18
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.output(LOCK_GPIO_PIN, 1)  # Ensure lock is locked initially
+GPIO.output(LOCK_GPIO_PIN, 1)
 
-# Push Notification Setup
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
 EXPO_DEVICE_PUSH_TOKEN = None
 
-# Load encodings
 try:
     with open("encodings.pickle", "rb") as f:
         data = pickle.load(f)
@@ -52,7 +50,6 @@ try:
 except Exception as e:
     logger.error(f"Encoding load error: {e}")
 
-# Ensure directories exist
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
 os.makedirs("dataset", exist_ok=True)
@@ -85,7 +82,6 @@ def lock_immediately():
     GPIO.output(LOCK_GPIO_PIN, 1)
     GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
     logger.info("Lock set to HIGH and pin set to INPUT")
-
 
 def save_video_clip(frames, filename="latest.mp4", fps=10):
     height, width, _ = frames[0].shape
@@ -184,6 +180,10 @@ def send_push_notification(token, alert):
     except Exception as e:
         logger.error(f"Push error: {e}")
 
+@app.route('/static/videos/<path:filename>')
+def serve_video(filename):
+    return send_file(os.path.join("static/videos", filename), mimetype='video/mp4')
+
 @app.route('/')
 def home():
     return 'Face & Motion Detection Server Running'
@@ -238,7 +238,6 @@ def delete_user(name):
     except Exception as e:
         logger.error(f"Error deleting user {name}: {e}")
         return jsonify({"status": "error", "message": "Internal server error"}), 500
-
 
 @app.route('/register_token', methods=['POST'])
 def register_token():
