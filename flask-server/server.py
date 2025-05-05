@@ -84,16 +84,14 @@ def lock_immediately():
     GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
     logger.info("Lock set to HIGH and pin set to INPUT")
 
-def save_video_clip(frames, filename="latest.mp4", fps=10):
+def save_video_clip(frames, filename="latest.avi", fps=10):
     try:
         height, width, _ = frames[0].shape
         video_path = os.path.join("static/videos", filename)
-        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'mp4v'), fps, (width, height))
+        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'XVID'), fps, (width, height))
         for frame in frames:
             out.write(frame)
         out.release()
-
-        # Wait briefly and check if file was successfully written
         time.sleep(0.2)
         if os.path.exists(video_path):
             logger.info(f"Video saved: {video_path}")
@@ -104,6 +102,7 @@ def save_video_clip(frames, filename="latest.mp4", fps=10):
     except Exception as e:
         logger.error(f"Error saving video: {e}")
         return None
+
 
 
 def detect_motion():
@@ -196,7 +195,8 @@ def send_push_notification(token, alert):
 
 @app.route('/static/videos/<path:filename>')
 def serve_video(filename):
-    return send_file(os.path.join("static/videos", filename), mimetype='video/mp4')
+    return send_file(os.path.join("static/videos", filename), mimetype='video/x-msvideo')
+
 
 @app.route('/')
 def home():
