@@ -1,3 +1,4 @@
+// AlertScreen.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Image, FlatList, TouchableOpacity,
@@ -35,7 +36,14 @@ export default function AlertScreen() {
   const renderAlert = ({ item }) => (
     <TouchableOpacity
       style={styles.alertContainer}
-      onPress={() => router.push({ pathname: './VideoScreen', params: item })}
+      onPress={() => router.push({
+        pathname: '/nav-screens/VideoScreen',
+        params: {
+          videoUrl: item.video || '',
+          name: item.name,
+          timestamp: item.timestamp
+        }
+      })}
     >
       {item.image ? (
         <Image source={{ uri: `${API_URL}${item.image}` }} style={styles.alertImage} />
@@ -60,9 +68,7 @@ export default function AlertScreen() {
           data={alerts}
           keyExtractor={item => item.timestamp}
           renderItem={renderAlert}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={fetchAlerts} />
-          }
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={fetchAlerts} />}
         />
       )}
     </View>
