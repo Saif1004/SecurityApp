@@ -223,6 +223,23 @@ def get_detections():
     with detection_lock:
         return jsonify({"status": "success", "detected_faces": latest_detections})
 
+@app.route('/delete_user/<name>', methods=['DELETE'])
+def delete_user(name):
+    try:
+        folder = os.path.join("dataset", name)
+        if os.path.exists(folder):
+            for file in os.listdir(folder):
+                os.remove(os.path.join(folder, file))
+            os.rmdir(folder)
+            Thread(target=retrain_encodings, daemon=True).start()
+            return jsonify({"status": "success", "message": f"User '{name}' deleted."})
+        else:
+            return jsonify({"status": "error", "message": "User not found"}), 404
+    except Exception as e:
+        logger.error(f"Error deleting user {name}: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
+
+
 @app.route('/register_token', methods=['POST'])
 def register_token():
     global EXPO_DEVICE_PUSH_TOKEN
