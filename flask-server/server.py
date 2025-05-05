@@ -36,7 +36,7 @@ LOCK_GPIO_PIN = 18
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-GPIO.input(LOCK_GPIO_PIN, 1)
+GPIO.output(LOCK_GPIO_PIN, 1)
 
 EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
 EXPO_DEVICE_PUSH_TOKEN = None
