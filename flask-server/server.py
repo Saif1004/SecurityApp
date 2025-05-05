@@ -348,6 +348,7 @@ def after_request(response):
 
 if __name__ == '__main__':
     initialize_hardware()
+    lock_immediately()
     Thread(target=detect_motion, daemon=True).start()
     Thread(target=detect_faces, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, threaded=True)
