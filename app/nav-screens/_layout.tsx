@@ -13,7 +13,7 @@ export default function NavLayout() {
           <Stack.Screen name="Lock" options={{ title: 'Solenoid Lock' }} />
           <Stack.Screen name="Sensor" options={{ title: 'Motion Sensor' }} />
           <Stack.Screen name="AddFaces" options={{ title: 'Add Faces' }} />
-          <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+          <Stack.Screen name="settings" options={{ title: 'Users' }} />
         </Stack>
       </ThemeProvider>
     </AuthProvider>

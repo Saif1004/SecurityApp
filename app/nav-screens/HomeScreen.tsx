@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ScrollView, View, Text, Image, Animated, Pressable, Alert, TouchableOpacity
+  ScrollView,
+  View,
+  Text,
+  Image,
+  Animated,
+  Pressable,
+  Alert,
+  TouchableOpacity
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,8 +16,8 @@ import { StatusBar } from 'expo-status-bar';
 import AegisShield from '../../assets/images/Aegis-Shield.png';
 import tw from 'twrnc';
 
-import { signOut } from 'firebase/auth'; // ✅ Web SDK
-import { auth } from '../firebase';     // ✅ Use the same one as in SignIn
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
 import { useAuth } from '../Authprovider';
 import { useTheme } from './ThemeProvider';
 
@@ -28,7 +35,7 @@ export default function HomeScreen() {
 
   const signOutUser = async () => {
     try {
-      await signOut(auth); // ✅ Use Web SDK
+      await signOut(auth);
       router.replace('/sign-in');
     } catch (error: any) {
       Alert.alert('Sign-out failed', error.message);
@@ -73,35 +80,38 @@ export default function HomeScreen() {
     <View style={tw`${isDark ? 'bg-black' : 'bg-gray-50'} flex-1 relative`}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <ScrollView contentContainerStyle={tw`pb-36 min-h-full`}>
-        <View style={tw`flex-row justify-between items-center px-6 pt-12`}>
-          <View style={tw`flex-row items-center`}>
-            <Image source={AegisShield} style={tw`w-12 h-12 rounded-full mr-3`} />
-            <View>
-              <Text style={tw`${isDark ? 'text-white' : 'text-black'} text-base font-bold`}>
-                Hello, {user?.email}!
-              </Text>
-              <Text style={tw`${isDark ? 'text-gray-400' : 'text-gray-600'} mt-1 text-sm`}>
-                {time.toLocaleString()}
-              </Text>
-            </View>
-          </View>
-          <View style={tw`flex-row items-center`}>
-            <Pressable onPress={toggleTheme} style={tw`mr-4`}>
-              <Ionicons
-                name={isDark ? 'sunny-outline' : 'moon-outline'}
-                size={24}
-                color={isDark ? 'white' : 'black'}
-              />
-            </Pressable>
-            <Pressable onPress={() => router.push('/nav-screens/settings')}>
-              <Ionicons name="settings-outline" size={24} color={isDark ? 'white' : 'black'} />
-            </Pressable>
+      {/* Header */}
+      <View style={tw`flex-row items-center justify-between px-6 pt-12`}>
+        <View style={tw`flex-row items-center`}>
+          <Image source={AegisShield} style={tw`w-10 h-10 mr-3`} />
+          <View>
+            <Text style={tw`${isDark ? 'text-white' : 'text-black'} text-base font-bold`}>
+              Hello, {user?.email?.split('@')[0]}!
+            </Text>
+            <Text style={tw`${isDark ? 'text-gray-400' : 'text-gray-600'} text-xs mt-0.5`}>
+              {time.toLocaleString()}
+            </Text>
           </View>
         </View>
+        <View style={tw`flex-row items-center`}>
+          <Pressable onPress={toggleTheme} style={tw`mr-3`}>
+            <Ionicons
+              name={isDark ? 'sunny-outline' : 'moon-outline'}
+              size={22}
+              color={isDark ? 'white' : 'black'}
+            />
+          </Pressable>
+          <Pressable onPress={() => router.push('/nav-screens/settings')}>
+            <Ionicons name="people-outline" size={22} color={isDark ? 'white' : 'black'} />
+          </Pressable>
+        </View>
+      </View>
 
-        <View style={tw`w-11/12 h-0.5 ${isDark ? 'bg-gray-700' : 'bg-gray-300'} self-center mt-6`} />
-        <View style={tw`flex-row flex-wrap justify-center mt-14 px-4`}>
+      {/* Body */}
+      <ScrollView contentContainerStyle={tw`pb-40 pt-6`}>
+        <View style={tw`w-11/12 h-0.5 ${isDark ? 'bg-gray-700' : 'bg-gray-300'} self-center`} />
+
+        <View style={tw`flex-row flex-wrap justify-center mt-10 px-4`}>
           {featureItems.map((item, index) => (
             <FeatureBox key={index} item={item} />
           ))}
