@@ -366,3 +366,6 @@ if __name__ == '__main__':
     Thread(target=detect_motion, daemon=True).start()
     Thread(target=detect_faces, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, threaded=True)
+
+
+#ngrok http --url=cerberus.ngrok.dev 5000
