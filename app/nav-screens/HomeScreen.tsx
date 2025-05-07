@@ -1,21 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ScrollView,
-  View,
-  Text,
-  Image,
-  Animated,
-  Pressable,
-  Alert
+  ScrollView, View, Text, Image, Animated, Pressable, Alert, TouchableOpacity
 } from 'react-native';
-import tw from 'twrnc';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import AegisShield from '../../assets/images/Aegis-Shield.png';
-import auth from '@react-native-firebase/auth';
-import { TouchableOpacity } from 'react-native';
+import tw from 'twrnc';
+
+import { signOut } from 'firebase/auth'; // ✅ Web SDK
+import { auth } from '../firebase';     // ✅ Use the same one as in SignIn
 import { useAuth } from '../Authprovider';
 import { useTheme } from './ThemeProvider';
 
@@ -24,7 +19,6 @@ export default function HomeScreen() {
   const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === 'dark';
-
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -33,14 +27,10 @@ export default function HomeScreen() {
   }, []);
 
   const signOutUser = async () => {
-    if (!user) {
-      Alert.alert('Sign-out failed', 'No user is currently signed in.');
-      return;
-    }
     try {
-      await auth().signOut();
+      await signOut(auth); // ✅ Use Web SDK
       router.replace('/sign-in');
-    } catch (error) {
+    } catch (error: any) {
       Alert.alert('Sign-out failed', error.message);
     }
   };
@@ -54,7 +44,6 @@ export default function HomeScreen() {
 
   const FeatureBox = ({ item }: any) => {
     const scale = useRef(new Animated.Value(1)).current;
-
     const animateIn = () => Animated.spring(scale, { toValue: 0.95, useNativeDriver: true }).start();
     const animateOut = () => Animated.spring(scale, { toValue: 1, useNativeDriver: true }).start();
 
@@ -112,7 +101,6 @@ export default function HomeScreen() {
         </View>
 
         <View style={tw`w-11/12 h-0.5 ${isDark ? 'bg-gray-700' : 'bg-gray-300'} self-center mt-6`} />
-
         <View style={tw`flex-row flex-wrap justify-center mt-14 px-4`}>
           {featureItems.map((item, index) => (
             <FeatureBox key={index} item={item} />

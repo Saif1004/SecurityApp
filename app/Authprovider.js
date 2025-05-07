@@ -1,27 +1,35 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import auth from '@react-native-firebase/auth';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from './firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-    const [user, setUser] = useState(null);
-    const [initializing, setInitializing] = useState(true);
+  const [user, setUser] = useState(null);
+  const [initializing, setInitializing] = useState(true);
 
-    useEffect(() => {
-        const unsubscribe = auth().onAuthStateChanged((user) => {
-            console.log('Auth State Changed:', user);
-            setUser(user);
-            setInitializing(false);
-        });
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (usr) => {
+      if (usr) {
+        const docRef = doc(db, 'users', usr.uid);
+        const snap = await getDoc(docRef);
+        const isVerified = snap.exists() && snap.data()?.otpVerified;
+        setUser(isVerified ? usr : null);
+      } else {
+        setUser(null);
+      }
+      setInitializing(false);
+    });
 
-        return unsubscribe; // Cleanup on unmount
-    }, []);
+    return unsubscribe;
+  }, []);
 
-    return (
-        <AuthContext.Provider value={{ user, initializing }}>
-            {children}
-        </AuthContext.Provider>
-    );
+  return (
+    <AuthContext.Provider value={{ user, initializing }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
 
 export const useAuth = () => useContext(AuthContext);

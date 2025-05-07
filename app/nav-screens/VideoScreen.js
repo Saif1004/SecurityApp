@@ -1,4 +1,3 @@
-// VideoScreen.tsx
 import { View, Text, StyleSheet } from 'react-native';
 import { Video } from 'expo-av';
 import { useLocalSearchParams } from 'expo-router';
