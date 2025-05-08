@@ -298,7 +298,7 @@ def generate_frames():
             frame = picam2.capture_array()
             rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             _, buffer = cv2.imencode('.jpg', rgb)
-            yield (b'--frame\\r\\nContent-Type: image/jpeg\\r\\n\\r\\n' + buffer.tobytes() + b'\\r\\n')
+            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
         time.sleep(0.05)
 
 def retrain_encodings():
