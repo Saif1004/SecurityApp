@@ -46,7 +46,7 @@ GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
 GPIO.output(LOCK_GPIO_PIN, 1)
 
 # Fingerprint Sensor
-uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
+uart = serial.Serial("/dev/ttyAMA1", baudrate=57600, timeout=1)
 finger = Adafruit_Fingerprint(uart)
 
 # Push Notification
