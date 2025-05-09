@@ -13,23 +13,11 @@ from threading import Thread, Lock
 from collections import deque
 from imutils import paths
 import logging
-import serial
-import json
-from adafruit_fingerprint import Adafruit_Fingerprint as AF
 
-# Configuration Constants
-FINGERPRINT_MAP_FILE = "fingerprint_map.json"
-LOCK_GPIO_PIN = 18
-EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
-FRAME_BUFFER_SIZE = 100
-DETECTION_HISTORY_LIMIT = 50
-UNLOCK_DURATION = 5  # seconds
-MOTION_THRESHOLD = 800
-MOTION_COOLDOWN = 10  # seconds
-
-# Logging setup
+# Logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+os.makedirs("static/videos", exist_ok=True)
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -41,184 +29,120 @@ known_face_encodings = []
 known_face_names = []
 detection_lock = Lock()
 latest_detections = []
-frame_buffer = deque(maxlen=FRAME_BUFFER_SIZE)
+frame_buffer = deque(maxlen=100)
+last_encoded_frame = None
+
+# GPIO Setup
+LOCK_GPIO_PIN = 18
+GPIO.setwarnings(False)
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
+GPIO.output(LOCK_GPIO_PIN, 1)
+
+EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
 EXPO_DEVICE_PUSH_TOKEN = None
 
-# Create required directories
+try:
+    with open("encodings.pickle", "rb") as f:
+        data = pickle.load(f)
+        known_face_encodings = data["encodings"]
+        known_face_names = data["names"]
+        logger.info(f"Loaded {len(known_face_names)} encodings")
+except Exception as e:
+    logger.error(f"Encoding load error: {e}")
+
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
 os.makedirs("dataset", exist_ok=True)
 
-# Hardware initialization
 def initialize_hardware():
     global picam2, PI_HARDWARE_AVAILABLE
-    
-    # GPIO Setup
-    GPIO.setwarnings(False)
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
-    lock_immediately()  # Start with locked state
-    
-    # Camera Setup
     try:
         from picamera2 import Picamera2
         picam2 = Picamera2()
         config = picam2.create_preview_configuration(main={"size": (640, 480)})
         picam2.configure(config)
         picam2.start()
-        logger.info("Camera initialized successfully")
+        logger.info("Camera initialized")
     except Exception as e:
-        logger.error(f"Camera initialization failed: {e}")
-        PI_HARDWARE_AVAILABLE = False
-    
-    # Fingerprint Sensor Setup
-    try:
-        global uart, finger
-        uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
-        finger = AF(uart)
-        FINGERPRINT_OK = 0
-        FINGERPRINT_NOFINGER = 2
-        logger.info("Fingerprint sensor initialized")
-    except Exception as e:
-        logger.error(f"Fingerprint sensor initialization failed: {e}")
+        logger.error(f"Camera init failed: {e}")
         PI_HARDWARE_AVAILABLE = False
 
-# Lock control functions
-def unlock_lock_for_seconds(seconds=UNLOCK_DURATION):
+def unlock_lock_for_seconds(seconds=5):
     logger.info(f"Unlocking lock for {seconds} seconds")
+    GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
     GPIO.output(LOCK_GPIO_PIN, 0)
     time.sleep(seconds)
-    lock_immediately()
+    GPIO.output(LOCK_GPIO_PIN, 1)
+    GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
+    logger.info("Lock re-locked and pin set to INPUT")
 
 def lock_immediately():
     logger.info("Locking immediately")
+    GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
     GPIO.output(LOCK_GPIO_PIN, 1)
     GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
+    logger.info("Lock set to HIGH and pin set to INPUT")
 
-# Face recognition functions
-def load_encodings():
-    global known_face_encodings, known_face_names
+def save_video_clip(frames, filename="latest.avi", fps=10):
     try:
-        with open("encodings.pickle", "rb") as f:
-            data = pickle.load(f)
-            known_face_encodings = data["encodings"]
-            known_face_names = data["names"]
-            logger.info(f"Loaded {len(known_face_names)} face encodings")
-    except Exception as e:
-        logger.error(f"Error loading face encodings: {e}")
-        known_face_encodings, known_face_names = [], []
-
-def retrain_encodings():
-    image_paths = list(paths.list_images("dataset"))
-    encodings, names = [], []
-    
-    for path in image_paths:
-        name = os.path.basename(os.path.dirname(path))
-        try:
-            img = cv2.imread(path)
-            rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            boxes = face_recognition.face_locations(rgb)
-            for enc in face_recognition.face_encodings(rgb, boxes):
-                encodings.append(enc)
-                names.append(name)
-        except Exception as e:
-            logger.error(f"Error processing image {path}: {e}")
-    
-    with open("encodings.pickle", "wb") as f:
-        pickle.dump({"encodings": encodings, "names": names}, f)
-    
-    global known_face_encodings, known_face_names
-    known_face_encodings, known_face_names = encodings, names
-    logger.info(f"Retrained encodings with {len(names)} faces")
-
-# Fingerprint functions
-def load_fingerprint_map():
-    if os.path.exists(FINGERPRINT_MAP_FILE):
-        try:
-            with open(FINGERPRINT_MAP_FILE, "r") as f:
-                return json.load(f)
-        except Exception as e:
-            logger.error(f"Error loading fingerprint map: {e}")
-    return {}
-
-def save_fingerprint_map(data):
-    with open(FINGERPRINT_MAP_FILE, "w") as f:
-        json.dump(data, f)
-
-def get_next_fingerprint_id():
-    if finger.read_templates() != AF.OK:
-        return None
-    new_id = 0
-    while new_id in set(finger.templates):
-        new_id += 1
-    return new_id if new_id < finger.library_size else None
-
-# Video processing functions
-def save_video_clip(frames, filename="clip.avi", fps=10):
-    if not frames:
-        return None
-    h, w, _ = frames[0].shape
-    path = os.path.join("static/videos", filename)
-    try:
-        out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'XVID'), fps, (w, h))
+        height, width, _ = frames[0].shape
+        video_path = os.path.join("static/videos", filename)
+        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*'XVID'), fps, (width, height))
         for frame in frames:
             out.write(frame)
         out.release()
-        return "/" + path
+        time.sleep(0.2)
+        if os.path.exists(video_path):
+            logger.info(f"Video saved: {video_path}")
+            return f"/static/videos/{filename}"
+        else:
+            logger.error(f"File does not exist after saving: {video_path}")
+            return None
     except Exception as e:
-        logger.error(f"Error saving video clip: {e}")
+        logger.error(f"Error saving video: {e}")
         return None
 
-def generate_frames():
-    while True:
-        if picam2 and PI_HARDWARE_AVAILABLE:
-            try:
-                frame = picam2.capture_array()
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                _, buffer = cv2.imencode('.jpg', rgb)
-                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            except Exception as e:
-                logger.error(f"Error generating video frame: {e}")
-        time.sleep(0.05)
 
-# Background detection threads
+
 def detect_motion():
+    global latest_detections
     last_frame_gray = None
     last_motion_time = 0
-    
+    cooldown_seconds = 10
     while True:
         if picam2 and PI_HARDWARE_AVAILABLE:
             try:
                 frame = picam2.capture_array()
-                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-                bgr = frame
-                
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                frame_bgr = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
                 with detection_lock:
-                    frame_buffer.append(bgr)
-                
+                    frame_buffer.append(frame_bgr)
+                motion_detected = False
                 if last_frame_gray is not None:
-                    diff = cv2.absdiff(last_frame_gray, gray)
-                    _, thresh = cv2.threshold(diff, 30, 255, cv2.THRESH_BINARY)
-                    
-                    if cv2.countNonZero(thresh) > MOTION_THRESHOLD:
-                        current_time = time.time()
-                        if current_time - last_motion_time > MOTION_COOLDOWN:
-                            last_motion_time = current_time
-                            timestamp = datetime.now().isoformat()
-                            img_path = f"static/images/{timestamp.replace(':','-')}.jpg"
-                            video_path = save_video_clip(list(frame_buffer), f"{timestamp.replace(':','-')}.avi")
-                            cv2.imwrite(img_path, bgr)
-                            
-                            with detection_lock:
-                                latest_detections.insert(0, {
-                                    "name": "Motion",
-                                    "timestamp": timestamp,
-                                    "image": "/" + img_path,
-                                    "video": video_path
-                                })
-                                latest_detections[:] = latest_detections[:DETECTION_HISTORY_LIMIT]
-                
-                last_frame_gray = gray
+                    frame_diff = cv2.absdiff(last_frame_gray, gray_frame)
+                    _, thresh = cv2.threshold(frame_diff, 30, 255, cv2.THRESH_BINARY)
+                    if cv2.countNonZero(thresh) > 800:
+                        motion_detected = True
+                last_frame_gray = gray_frame
+                now = time.time()
+                if motion_detected and (now - last_motion_time) > cooldown_seconds:
+                    last_motion_time = now
+                    timestamp = datetime.now().isoformat()
+                    img_filename = f"static/images/{timestamp.replace(':', '-')}.jpg"
+                    cv2.imwrite(img_filename, frame_bgr)
+                    video_filename = f"{timestamp.replace(':', '-')}.mp4"
+                    video_path = save_video_clip(list(frame_buffer), filename=video_filename)
+                    detection_entry = {
+                        "name": "Motion Detected",
+                        "timestamp": timestamp,
+                        "image": f"/{img_filename}",
+                        "video": video_path
+                    }
+                    with detection_lock:
+                        latest_detections = [detection_entry] + latest_detections[:49]
+                    logger.info(f"Motion detected at {timestamp}")
             except Exception as e:
                 logger.error(f"Motion detection error: {e}")
         time.sleep(0.5)
@@ -228,41 +152,55 @@ def detect_faces():
         if picam2 and PI_HARDWARE_AVAILABLE:
             try:
                 frame = picam2.capture_array()
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                locations = face_recognition.face_locations(rgb)
-                encodings = face_recognition.face_encodings(rgb, locations)
-                
-                for (top, right, bottom, left), face_encoding in zip(locations, encodings):
-                    matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                face_locations = face_recognition.face_locations(rgb_frame)
+                face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+                for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
+                    matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.5)
                     name = "Unknown"
-                    
                     if True in matches:
                         name = known_face_names[matches.index(True)]
-                    
-                    if name != "Unknown":
-                        Thread(target=unlock_lock_for_seconds, daemon=True).start()
-                    
                     timestamp = datetime.now().isoformat()
-                    img_filename = f"static/images/{timestamp.replace(':','-')}.jpg"
-                    bgr = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-                    cv2.imwrite(img_filename, bgr)
-                    
-                    with detection_lock:
-                        latest_detections.insert(0, {
+                    img_filename = f"static/images/{timestamp.replace(':', '-')}.jpg"
+                    frame_bgr = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
+                    cv2.imwrite(img_filename, frame_bgr)
+                    logger.info(f"Face detected: {name} at {timestamp}")
+                    if name != "Unknown":
+                        Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
+                    if EXPO_DEVICE_PUSH_TOKEN:
+                        detection_entry = {
                             "name": name,
                             "timestamp": timestamp,
-                            "image": "/" + img_filename,
+                            "image": f"/{img_filename}",
                             "video": None
-                        })
-                        latest_detections[:] = latest_detections[:DETECTION_HISTORY_LIMIT]
+                        }
+                        send_push_notification(EXPO_DEVICE_PUSH_TOKEN, detection_entry)
             except Exception as e:
                 logger.error(f"Face detection error: {e}")
         time.sleep(2)
 
-# API Routes
+def send_push_notification(token, alert):
+    message = {
+        'to': token,
+        'sound': 'default',
+        'title': f'{alert["name"]} Detected!',
+        'body': f"At {alert['timestamp']}",
+        'data': alert
+    }
+    try:
+        requests.post(EXPO_PUSH_ENDPOINT, json=message)
+        logger.info("Push notification sent")
+    except Exception as e:
+        logger.error(f"Push error: {e}")
+
+@app.route('/static/videos/<path:filename>')
+def serve_video(filename):
+    return send_file(os.path.join("static/videos", filename), mimetype='video/x-msvideo')
+
+
 @app.route('/')
 def home():
-    return 'Face, Motion & Fingerprint Detection Server Running'
+    return 'Face & Motion Detection Server Running'
 
 @app.route('/video_feed')
 def video_feed():
@@ -271,7 +209,8 @@ def video_feed():
 @app.route('/view')
 def view():
     return """
-    <html><body style="margin:0">
+    <html><head><link rel='icon' href='/favicon.ico' /></head>
+    <body style="margin:0;background:#fff;">
     <img src="/video_feed" style="width:100vw;height:100vh;object-fit:contain;" />
     </body></html>
     """
@@ -279,10 +218,6 @@ def view():
 @app.route('/favicon.ico')
 def favicon():
     return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
-@app.route('/static/videos/<path:filename>')
-def serve_video(filename):
-    return send_file(os.path.join("static/videos", filename), mimetype='video/x-msvideo')
 
 @app.route('/dataset/<path:filename>')
 def serve_dataset(filename):
@@ -297,6 +232,11 @@ def list_users():
             users[person] = [f"/dataset/{person}/{img}" for img in os.listdir(path)]
     return jsonify(users)
 
+@app.route('/detect', methods=['GET'])
+def get_detections():
+    with detection_lock:
+        return jsonify({"status": "success", "detected_faces": latest_detections})
+
 @app.route('/delete_user/<name>', methods=['DELETE'])
 def delete_user(name):
     try:
@@ -305,20 +245,13 @@ def delete_user(name):
             for file in os.listdir(folder):
                 os.remove(os.path.join(folder, file))
             os.rmdir(folder)
-            
-            # Also remove from fingerprint map if exists
-            fp_map = load_fingerprint_map()
-            for fid, fname in list(fp_map.items()):
-                if fname == name:
-                    del fp_map[fid]
-            save_fingerprint_map(fp_map)
-            
             Thread(target=retrain_encodings, daemon=True).start()
             return jsonify({"status": "success", "message": f"User '{name}' deleted."})
-        return jsonify({"status": "error", "message": "User not found"}), 404
+        else:
+            return jsonify({"status": "error", "message": "User not found"}), 404
     except Exception as e:
         logger.error(f"Error deleting user {name}: {e}")
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 @app.route('/register_token', methods=['POST'])
 def register_token():
@@ -328,11 +261,11 @@ def register_token():
     if token:
         EXPO_DEVICE_PUSH_TOKEN = token
         return jsonify({"status": "success", "message": "Token registered"})
-    return jsonify({"status": "error", "message": "No token provided"}), 400
+    return jsonify({"status": "error", "message": "No token"}), 400
 
 @app.route('/unlock', methods=['POST'])
 def unlock_door():
-    Thread(target=unlock_lock_for_seconds, daemon=True).start()
+    Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
     return jsonify({"status": "success", "message": "Door unlocked"})
 
 @app.route('/lock', methods=['POST'])
@@ -340,110 +273,86 @@ def lock_door():
     lock_immediately()
     return jsonify({"status": "success", "message": "Door locked"})
 
+@app.route('/register_face', methods=['POST'])
+def register_face():
+    name = request.form.get('name')
+    files = request.files.getlist('images')
+    if not name or not files:
+        return jsonify({"status": "error", "message": "Name and images required"}), 400
+    folder = os.path.join("dataset", name)
+    os.makedirs(folder, exist_ok=True)
+    for file in files:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
+        path = os.path.join(folder, f"{name}_{timestamp}.jpg")
+        file.save(path)
+    Thread(target=retrain_encodings, daemon=True).start()
+    return jsonify({"status": "success", "message": f"{len(files)} images saved. Training started."})
+
 @app.route('/capture_face', methods=['POST'])
 def capture_face():
     name = request.form.get('name')
     if not name:
         return jsonify({"status": "error", "message": "Name is required"}), 400
-    
-    folder = os.path.join("dataset", name)
-    os.makedirs(folder, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    filename = f"{name}_{timestamp}.jpg"
-    path = os.path.join(folder, filename)
-    
-    if picam2 and PI_HARDWARE_AVAILABLE:
-        try:
+    try:
+        folder = os.path.join("dataset", name)
+        os.makedirs(folder, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
+        filename = f"{name}_{timestamp}.jpg"
+        path = os.path.join(folder, filename)
+        if picam2 and PI_HARDWARE_AVAILABLE:
             frame = picam2.capture_array()
             cv2.imwrite(path, frame)
             logger.info(f"Captured image for {name}: {filename}")
-            Thread(target=retrain_encodings, daemon=True).start()
-            return jsonify({"status": "success", "message": f"Photo saved as {filename}"})
-        except Exception as e:
-            logger.error(f"Error capturing face: {e}")
-            return jsonify({"status": "error", "message": "Failed to capture image"}), 500
-    return jsonify({"status": "error", "message": "Camera not available"}), 503
-
-@app.route('/enroll_fingerprint', methods=['POST'])
-def enroll_fingerprint():
-    name = request.form.get('name')
-    if not name:
-        return jsonify({"status": "error", "message": "Name is required"}), 400
-
-    FINGERPRINT_OK = 0
-    FINGERPRINT_NOFINGER = 2
-
-    new_id = get_next_fingerprint_id()
-    if new_id is None:
-        return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
-
-    for i in range(1, 3):  # Two samples needed
-        while finger.get_image() != FINGERPRINT_OK:
-            time.sleep(0.5)
-        if finger.image_2_tz(i) != FINGERPRINT_OK:
-            return jsonify({"status": "error", "message": f"Template {i} creation failed"}), 500
-        time.sleep(1)
-        while finger.get_image() != FINGERPRINT_NOFINGER:
-            time.sleep(0.1)
-
-    if finger.create_model() != FINGERPRINT_OK:
-        return jsonify({"status": "error", "message": "Model creation failed"}), 500
-
-    if finger.store_model(new_id) == FINGERPRINT_OK:
-        fp_map = load_fingerprint_map()
-        fp_map[str(new_id)] = name
-        save_fingerprint_map(fp_map)
-        return jsonify({
-            "status": "success",
-            "message": f"Fingerprint enrolled with ID {new_id}",
-            "id": new_id
-        })
-
-    return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
-
-
-
-@app.route('/scan_fingerprint', methods=['GET'])
-def scan_fingerprint():
-    FINGERPRINT_OK = 0
-    try:
-        while finger.get_image() != FINGERPRINT_OK:
-            time.sleep(0.5)
-        
-        if finger.image_2_tz(1) != FINGERPRINT_OK:
-            return jsonify({"status": "error", "message": "Template creation failed"}), 500
-        
-        if finger.finger_search() == FINGERPRINT_OK:
-            matched_id = finger.finger_id
-            confidence = finger.confidence
-            fp_map = load_fingerprint_map()
-            name = fp_map.get(str(matched_id), "Unknown")
-            
-            if name != "Unknown":
-                Thread(target=unlock_lock_for_seconds, daemon=True).start()
-            
-            return jsonify({
-                "status": "success",
-                "id": matched_id,
-                "name": name,
-                "confidence": confidence
-            })
-        return jsonify({"status": "error", "message": "No matching fingerprint found"}), 404
+        else:
+            return jsonify({"status": "error", "message": "Camera not available"}), 500
+        Thread(target=retrain_encodings, daemon=True).start()
+        return jsonify({"status": "success", "message": f"Photo captured and saved as {filename}."})
     except Exception as e:
-        logger.error(f"Fingerprint scan error: {e}")
-        return jsonify({"status": "error", "message": f"Fingerprint scan failed: {str(e)}"}), 500
+        logger.error(f"Capture error: {e}")
+        return jsonify({"status": "error", "message": "Failed to capture image"}), 500
 
+def retrain_encodings():
+    try:
+        logger.info("Retraining encodings...")
+        imagePaths = list(paths.list_images("dataset"))
+        encodings = []
+        names = []
+        for path in imagePaths:
+            name = path.split(os.path.sep)[-2]
+            image = cv2.imread(path)
+            rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            boxes = face_recognition.face_locations(rgb, model="hog")
+            for enc in face_recognition.face_encodings(rgb, boxes):
+                encodings.append(enc)
+                names.append(name)
+        data = {"encodings": encodings, "names": names}
+        with open("encodings.pickle", "wb") as f:
+            pickle.dump(data, f)
+        global known_face_encodings, known_face_names
+        known_face_encodings = data["encodings"]
+        known_face_names = data["names"]
+        logger.info("Retraining complete")
+    except Exception as e:
+        logger.error(f"Retraining failed: {e}")
 
-@app.route('/detect', methods=['GET'])
-def get_detections():
-    with detection_lock:
-        logger.info(f"Returning {len(latest_detections)} alerts")
-        return jsonify({
-            "status": "success", 
-            "detected_faces": latest_detections,
-            "count": len(latest_detections)
-        })
-
+def generate_frames():
+    global last_encoded_frame
+    while True:
+        try:
+            if picam2:
+                frame = picam2.capture_array()
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+                with detection_lock:
+                    frame_buffer.append(frame_bgr)
+                ret, buffer = cv2.imencode('.jpg', frame_rgb, [int(cv2.IMWRITE_JPEG_QUALITY), 50])
+                if ret:
+                    last_encoded_frame = buffer.tobytes()
+                    yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + last_encoded_frame + b'\r\n')
+            time.sleep(0.05)
+        except Exception as e:
+            logger.error(f"Frame generation error: {e}")
+            time.sleep(1)
 
 @app.after_request
 def after_request(response):
@@ -453,11 +362,10 @@ def after_request(response):
 
 if __name__ == '__main__':
     initialize_hardware()
-    load_encodings()
-    
-    # Start background threads
+    lock_immediately()
     Thread(target=detect_motion, daemon=True).start()
     Thread(target=detect_faces, daemon=True).start()
-    
-    # Start Flask app
     app.run(host='0.0.0.0', port=5000, threaded=True)
+
+
+#ngrok http --url=cerberus.ngrok.dev 5000
