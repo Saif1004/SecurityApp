@@ -15,7 +15,7 @@ from imutils import paths
 import logging
 import serial
 import json
-from adafruit_fingerprint import Adafruit_Fingerprint
+from adafruit_fingerprint import Adafruit_Fingerprint as AF
 
 # Configuration Constants
 FINGERPRINT_MAP_FILE = "fingerprint_map.json"
@@ -75,7 +75,7 @@ def initialize_hardware():
     try:
         global uart, finger
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
-        finger = Adafruit_Fingerprint(uart)
+        finger = AF(uart)
         logger.info("Fingerprint sensor initialized")
     except Exception as e:
         logger.error(f"Fingerprint sensor initialization failed: {e}")
@@ -144,7 +144,7 @@ def save_fingerprint_map(data):
         json.dump(data, f)
 
 def get_next_fingerprint_id():
-    if finger.read_templates() != Adafruit_Fingerprint.OK:
+    if finger.read_templates() != AF.OK:
         return None
     new_id = 0
     while new_id in set(finger.templates):
@@ -374,20 +374,20 @@ def enroll_fingerprint():
             return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
 
         for i in range(1, 3):  # Two samples needed
-            while finger.get_image() != Adafruit_Fingerprint.OK:
+            while finger.get_image() != AF.OK:
                 time.sleep(0.5)
 
-            if finger.image_2_tz(i) != Adafruit_Fingerprint.OK:
+            if finger.image_2_tz(i) != AF.OK:
                 return jsonify({"status": "error", "message": f"Template {i} creation failed"}), 500
 
             time.sleep(1)
-            while finger.get_image() != Adafruit_Fingerprint.NOFINGER:
+            while finger.get_image() != AF.NOFINGER:
                 time.sleep(0.1)
 
-        if finger.create_model() != Adafruit_Fingerprint.OK:
+        if finger.create_model() != AF.OK:
             return jsonify({"status": "error", "message": "Model creation failed"}), 500
 
-        if finger.store_model(new_id) == Adafruit_Fingerprint.OK:
+        if finger.store_model(new_id) == AF.OK:
             fp_map = load_fingerprint_map()
             fp_map[str(new_id)] = name
             save_fingerprint_map(fp_map)
@@ -407,13 +407,13 @@ def enroll_fingerprint():
 @app.route('/scan_fingerprint', methods=['GET'])
 def scan_fingerprint():
     try:
-        while finger.get_image() != Adafruit_Fingerprint.OK:
+        while finger.get_image() != AF.OK:
             time.sleep(0.5)
         
-        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+        if finger.image_2_tz(1) != AF.OK:
             return jsonify({"status": "error", "message": "Template creation failed"}), 500
         
-        if finger.finger_search() == Adafruit_Fingerprint.OK:
+        if finger.finger_search() == AF.OK:
             matched_id = finger.finger_id
             confidence = finger.confidence
             fp_map = load_fingerprint_map()
