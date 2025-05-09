@@ -14,16 +14,18 @@ from collections import deque
 from imutils import paths
 import logging
 import serial
+import json
 from adafruit_fingerprint import Adafruit_Fingerprint
 
-# Logging
+FINGERPRINT_MAP_FILE = "fingerprint_map.json"
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
-# Global setup
+# Globals
 PI_HARDWARE_AVAILABLE = True
 picam2 = None
 known_face_encodings = []
@@ -31,39 +33,24 @@ known_face_names = []
 detection_lock = Lock()
 latest_detections = []
 frame_buffer = deque(maxlen=100)
-last_encoded_frame = None
+EXPO_DEVICE_PUSH_TOKEN = None
+LOCK_GPIO_PIN = 18
 
-# Directories
+# Setup dirs
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
 os.makedirs("dataset", exist_ok=True)
 
 # GPIO Setup
-LOCK_GPIO_PIN = 18
 GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(LOCK_GPIO_PIN, GPIO.OUT)
 GPIO.output(LOCK_GPIO_PIN, 1)
 
-# Fingerprint Sensor
+# Fingerprint UART
 uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
 finger = Adafruit_Fingerprint(uart)
 
-# Push Notification
-EXPO_PUSH_ENDPOINT = 'https://exp.host/--/api/v2/push/send'
-EXPO_DEVICE_PUSH_TOKEN = None
-
-# Load encodings
-try:
-    with open("encodings.pickle", "rb") as f:
-        data = pickle.load(f)
-        known_face_encodings = data["encodings"]
-        known_face_names = data["names"]
-        logger.info(f"Loaded {len(known_face_names)} encodings")
-except Exception as e:
-    logger.error(f"Encoding load error: {e}")
-
-# Functions
 def initialize_hardware():
     global picam2, PI_HARDWARE_AVAILABLE
     try:
@@ -83,106 +70,51 @@ def unlock_lock_for_seconds(seconds=5):
     time.sleep(seconds)
     GPIO.output(LOCK_GPIO_PIN, 1)
     GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
-    logger.info("Lock re-locked and pin set to INPUT")
 
 def lock_immediately():
     logger.info("Locking immediately")
     GPIO.output(LOCK_GPIO_PIN, 1)
     GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
 
-# Routes
-@app.route('/')
-def home():
-    return 'Face, Motion & Fingerprint Detection Server Running'
-
-@app.route('/video_feed')
-def video_feed():
-    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-@app.route('/view')
-def view():
-    return """
-    <html><body style="margin:0">
-    <img src="/video_feed" style="width:100vw;height:100vh;object-fit:contain;" />
-    </body></html>
-    """
-
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
-@app.route('/static/videos/<path:filename>')
-def serve_video(filename):
-    return send_file(os.path.join("static/videos", filename), mimetype='video/x-msvideo')
-
-@app.route('/dataset/<path:filename>')
-def serve_dataset(filename):
-    return send_from_directory('dataset', filename)
-
-@app.route('/users', methods=['GET'])
-def list_users():
-    users = {}
-    for person in os.listdir('dataset'):
-        path = os.path.join('dataset', person)
-        if os.path.isdir(path):
-            users[person] = [f"/dataset/{person}/{img}" for img in os.listdir(path)]
-    return jsonify(users)
-
-@app.route('/delete_user/<name>', methods=['DELETE'])
-def delete_user(name):
+def load_encodings():
+    global known_face_encodings, known_face_names
     try:
-        folder = os.path.join("dataset", name)
-        if os.path.exists(folder):
-            for file in os.listdir(folder):
-                os.remove(os.path.join(folder, file))
-            os.rmdir(folder)
-            Thread(target=retrain_encodings, daemon=True).start()
-            return jsonify({"status": "success", "message": f"User '{name}' deleted."})
-        else:
-            return jsonify({"status": "error", "message": "User not found"}), 404
+        with open("encodings.pickle", "rb") as f:
+            data = pickle.load(f)
+            known_face_encodings = data["encodings"]
+            known_face_names = data["names"]
+            logger.info(f"Loaded {len(known_face_names)} encodings")
     except Exception as e:
-        logger.error(f"Error deleting user {name}: {e}")
-        return jsonify({"status": "error", "message": "Internal server error"}), 500
+        logger.error(f"Encoding load error: {e}")
 
-@app.route('/register_token', methods=['POST'])
-def register_token():
-    global EXPO_DEVICE_PUSH_TOKEN
-    data = request.get_json()
-    token = data.get('token')
-    if token:
-        EXPO_DEVICE_PUSH_TOKEN = token
-        return jsonify({"status": "success", "message": "Token registered"})
-    return jsonify({"status": "error", "message": "No token"}), 400
+def retrain_encodings():
+    imagePaths = list(paths.list_images("dataset"))
+    encodings, names = [], []
+    for path in imagePaths:
+        name = os.path.basename(os.path.dirname(path))
+        img = cv2.imread(path)
+        rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        boxes = face_recognition.face_locations(rgb)
+        for enc in face_recognition.face_encodings(rgb, boxes):
+            encodings.append(enc)
+            names.append(name)
+    with open("encodings.pickle", "wb") as f:
+        pickle.dump({"encodings": encodings, "names": names}, f)
+    known_face_encodings[:] = encodings
+    known_face_names[:] = names
 
-@app.route('/unlock', methods=['POST'])
-def unlock_door():
-    Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
-    return jsonify({"status": "success", "message": "Door unlocked"})
+# Utility to load/save fingerprint map
+def load_fingerprint_map():
+    if os.path.exists(FINGERPRINT_MAP_FILE):
+        with open(FINGERPRINT_MAP_FILE, "r") as f:
+            return json.load(f)
+    return {}
 
-@app.route('/lock', methods=['POST'])
-def lock_door():
-    lock_immediately()
-    return jsonify({"status": "success", "message": "Door locked"})
+def save_fingerprint_map(data):
+    with open(FINGERPRINT_MAP_FILE, "w") as f:
+        json.dump(data, f)
 
-@app.route('/capture_face', methods=['POST'])
-def capture_face():
-    name = request.form.get('name')
-    if not name:
-        return jsonify({"status": "error", "message": "Name required"}), 400
-    folder = os.path.join("dataset", name)
-    os.makedirs(folder, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
-    filename = f"{name}_{timestamp}.jpg"
-    path = os.path.join(folder, filename)
-    if picam2 and PI_HARDWARE_AVAILABLE:
-        frame = picam2.capture_array()
-        cv2.imwrite(path, frame)
-        logger.info(f"Captured image for {name}: {filename}")
-    else:
-        return jsonify({"status": "error", "message": "Camera not available"}), 500
-    Thread(target=retrain_encodings, daemon=True).start()
-    return jsonify({"status": "success", "message": f"Photo saved as {filename}."})
-
+# Update enroll_fingerprint to store mapping
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
     name = request.form.get('name')
@@ -206,9 +138,14 @@ def enroll_fingerprint():
     if finger.create_model() != Adafruit_Fingerprint.OK:
         return jsonify({"status": "error", "message": "Model failed"}), 500
     if finger.store_model(new_id) == Adafruit_Fingerprint.OK:
+        # Save mapping
+        fp_map = load_fingerprint_map()
+        fp_map[str(new_id)] = name
+        save_fingerprint_map(fp_map)
         return jsonify({"status": "success", "message": f"Fingerprint stored with ID {new_id}."})
     return jsonify({"status": "error", "message": "Store failed"}), 500
 
+# Update scan_fingerprint to return matched name
 @app.route('/scan_fingerprint', methods=['GET'])
 def scan_fingerprint():
     while finger.get_image() != Adafruit_Fingerprint.OK:
@@ -216,8 +153,12 @@ def scan_fingerprint():
     if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
         return jsonify({"status": "error", "message": "Template failed"}), 500
     if finger.finger_search() == Adafruit_Fingerprint.OK:
+        matched_id = finger.finger_id
+        confidence = finger.confidence
+        fp_map = load_fingerprint_map()
+        name = fp_map.get(str(matched_id), "Unknown")
         Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
-        return jsonify({"status": "success", "id": finger.finger_id, "confidence": finger.confidence})
+        return jsonify({"status": "success", "id": matched_id, "name": name, "confidence": confidence})
     return jsonify({"status": "error", "message": "No match"}), 404
 
 @app.route('/detect', methods=['GET'])
@@ -283,12 +224,15 @@ def detect_faces():
                 logger.error(f"Face detection error: {e}")
         time.sleep(2)
 
+
 def save_video_clip(frames, filename="clip.avi", fps=10):
-    if not frames: return None
+    if not frames:
+        return None
     h, w, _ = frames[0].shape
     path = os.path.join("static/videos", filename)
     out = cv2.VideoWriter(path, cv2.VideoWriter_fourcc(*'XVID'), fps, (w, h))
-    for f in frames: out.write(f)
+    for f in frames:
+        out.write(f)
     out.release()
     return "/" + path
 
@@ -330,3 +274,6 @@ if __name__ == '__main__':
     Thread(target=detect_motion, daemon=True).start()
     Thread(target=detect_faces, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, threaded=True)
+
+
+ 

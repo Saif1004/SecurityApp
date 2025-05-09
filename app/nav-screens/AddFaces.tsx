@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, Button, Alert, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  Button,
+  Alert,
+  StyleSheet,
+  Dimensions,
+  TouchableOpacity,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { WebView } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import * as ScreenOrientation from 'expo-screen-orientation';
@@ -14,6 +27,7 @@ const AddFaces: React.FC = () => {
   const [isLandscape, setIsLandscape] = useState(false);
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
   const [webKey, setWebKey] = useState(0);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     fetch(`${NGROK_URL}/`)
@@ -25,81 +39,114 @@ const AddFaces: React.FC = () => {
       setWebKey(prev => prev + 1);
     });
 
-    return () => sub?.remove();
+    return () => sub?.remove?.();
   }, []);
 
   const toggleOrientation = async () => {
-    if (isLandscape) {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP);
-    } else {
-      await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
-    }
+    await ScreenOrientation.lockAsync(
+      isLandscape
+        ? ScreenOrientation.OrientationLock.PORTRAIT_UP
+        : ScreenOrientation.OrientationLock.LANDSCAPE
+    );
     setIsLandscape(!isLandscape);
     setWebKey(prev => prev + 1);
   };
 
-  const handleCapture = async () => {
-    if (!name) return Alert.alert('Missing Info', 'Please enter a name.');
+  const handleCaptureFace = async () => {
+    if (!name.trim()) return Alert.alert('Missing Info', 'Please enter a name.');
 
     const formData = new FormData();
     formData.append('name', name);
 
     try {
+      setLoading(true);
       const res = await fetch(`${NGROK_URL}/capture_face`, {
         method: 'POST',
         body: formData,
       });
       const data = await res.json();
       setMessage(data.message);
+      Alert.alert('Face Capture', data.message);
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', 'Could not capture face.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-      const fingerRes = await fetch(`${NGROK_URL}/enroll_fingerprint`, {
+  const handleEnrollFingerprint = async () => {
+    if (!name.trim()) return Alert.alert('Missing Info', 'Please enter a name.');
+
+    const formData = new FormData();
+    formData.append('name', name);
+
+    Alert.alert('Fingerprint', 'Place your finger on the sensor now.');
+
+    try {
+      setLoading(true);
+      const res = await fetch(`${NGROK_URL}/enroll_fingerprint`, {
         method: 'POST',
         body: formData,
       });
-      const fingerData = await fingerRes.json();
-      Alert.alert('Fingerprint', fingerData.message);
+      const data = await res.json();
+      Alert.alert('Fingerprint', data.message);
     } catch (err) {
       console.error(err);
-      setMessage('Error registering user.');
+      Alert.alert('Error', 'Could not enroll fingerprint.');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" backgroundColor="#fff" hidden={isLandscape} />
-      {serverUp ? (
-        <>
-          <WebView
-            key={webKey}
-            source={{ uri: `${NGROK_URL}/view` }}
-            originWhitelist={['*']}
-            javaScriptEnabled
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            style={{ width: dimensions.width, height: isLandscape ? dimensions.height : 250 }}
-          />
-          <TouchableOpacity style={styles.orientationButton} onPress={toggleOrientation}>
-            <Ionicons
-              name={isLandscape ? 'phone-portrait-outline' : 'phone-landscape-outline'}
-              size={24}
-              color="black"
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <StatusBar style="dark" hidden={isLandscape} />
+      <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
+        {serverUp ? (
+          <>
+            <WebView
+              key={webKey}
+              source={{ uri: `${NGROK_URL}/view` }}
+              style={{
+                width: dimensions.width,
+                height: isLandscape ? dimensions.height : 250,
+              }}
+              javaScriptEnabled
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
             />
-          </TouchableOpacity>
-        </>
-      ) : (
-        <Text style={styles.error}>Could not connect to server. Is ngrok running?</Text>
-      )}
+            <TouchableOpacity style={styles.orientationButton} onPress={toggleOrientation}>
+              <Ionicons
+                name={isLandscape ? 'phone-portrait-outline' : 'phone-landscape-outline'}
+                size={24}
+                color="black"
+              />
+            </TouchableOpacity>
+          </>
+        ) : (
+          <Text style={styles.error}>Could not connect to server. Is ngrok running?</Text>
+        )}
 
-      <Text style={styles.heading}>Register Face & Fingerprint</Text>
-      <TextInput
-        placeholder="Enter name"
-        style={styles.input}
-        value={name}
-        onChangeText={setName}
-      />
-      <Button title="Register User" onPress={handleCapture} />
-      {message ? <Text style={styles.message}>{message}</Text> : null}
-    </View>
+        <Text style={styles.heading}>Register Face & Fingerprint</Text>
+        <TextInput
+          placeholder="Enter name"
+          style={styles.input}
+          value={name}
+          onChangeText={setName}
+        />
+
+        <Button title="Register Face" onPress={handleCaptureFace} />
+        <View style={{ height: 10 }} />
+        <Button title="Enroll Fingerprint" onPress={handleEnrollFingerprint} />
+
+        {loading && <ActivityIndicator style={{ marginTop: 15 }} />}
+        {message ? <Text style={styles.message}>{message}</Text> : null}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
@@ -107,12 +154,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 16, backgroundColor: '#fff' },
   heading: { fontSize: 20, fontWeight: 'bold', marginTop: 16, marginBottom: 10 },
   input: {
-    borderWidth: 1, borderColor: '#ccc', padding: 10, borderRadius: 6, marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 10,
+    borderRadius: 6,
+    marginBottom: 10,
   },
   message: { marginTop: 10, color: 'green' },
   error: { color: 'red', textAlign: 'center', marginVertical: 20 },
   orientationButton: {
-    position: 'absolute', top: 10, right: 10, backgroundColor: '#eee', padding: 10, borderRadius: 20,
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#eee',
+    padding: 10,
+    borderRadius: 20,
   },
 });
 
