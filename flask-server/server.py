@@ -352,50 +352,77 @@ def home():
 
 @app.route('/video_feed')
 def video_feed():
-    """Video streaming route. Put this in the src attribute of an img tag."""
-    return Response(generate_frames(),
-                   mimetype='multipart/x-mixed-replace; boundary=frame')
+    return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
 
 @app.route('/view')
 def view():
-    """Video streaming home page."""
     return """
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-        <title>Live View</title>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Live Camera Feed</title>
         <style>
-            body { margin: 0; padding: 0; background-color: #000; }
-            #video-container { width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; }
-            #video-feed { max-width: 100%; max-height: 100%; object-fit: contain; }
+            html, body {
+                margin: 0;
+                padding: 0;
+                background: #000;
+                height: 100%;
+                overflow: hidden;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            #video {
+                max-width: 100vw;
+                max-height: 100vh;
+                object-fit: contain;
+                border: 2px solid #444;
+            }
+            #status {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                color: #0f0;
+                background: rgba(0, 0, 0, 0.6);
+                padding: 4px 8px;
+                font-family: monospace;
+                border-radius: 4px;
+            }
         </style>
     </head>
     <body>
-        <div id="video-container">
-            <img id="video-feed" src="/video_feed" />
-        </div>
+        <div id="status">Connecting...</div>
+        <img id="video" src="" alt="Video feed" />
         <script>
-            const videoFeed = document.getElementById('video-feed');
-            
-            // Auto-reconnect if feed disconnects
-            videoFeed.onerror = function() {
-                console.log('Video feed error, reconnecting...');
-                setTimeout(function() {
-                    videoFeed.src = '/video_feed?' + new Date().getTime();
-                }, 1000);
+            const video = document.getElementById('video');
+            const status = document.getElementById('status');
+
+            function loadFeed() {
+                const timestamp = Date.now();
+                video.src = '/video_feed?' + timestamp;
+            }
+
+            video.onload = () => {
+                status.textContent = "Connected";
+                status.style.color = "#0f0";
+                setTimeout(() => status.style.display = "none", 2000);
             };
-            
-            // Periodically check connection
-            setInterval(() => {
-                if (videoFeed.naturalWidth === 0) {
-                    console.log('Video feed stalled, reconnecting...');
-                    videoFeed.src = '/video_feed?' + new Date().getTime();
-                }
-            }, 5000);
+
+            video.onerror = () => {
+                status.textContent = "Connection lost. Retrying...";
+                status.style.color = "#f00";
+                setTimeout(loadFeed, 1000);
+            };
+
+            loadFeed();
         </script>
     </body>
     </html>
     """
+
 
 @app.route('/favicon.ico')
 def favicon():
