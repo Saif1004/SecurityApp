@@ -26,10 +26,6 @@ DETECTION_HISTORY_LIMIT = 50
 UNLOCK_DURATION = 5  # seconds
 MOTION_THRESHOLD = 800
 MOTION_COOLDOWN = 10  # seconds
-FINGERPRINT_TIMEOUT = 10  # seconds
-FINGERPRINT_RETRIES = 3
-SERIAL_PORT = "/dev/ttyAMA0"
-SERIAL_BAUDRATE = 57600
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -47,43 +43,11 @@ detection_lock = Lock()
 latest_detections = []
 frame_buffer = deque(maxlen=FRAME_BUFFER_SIZE)
 EXPO_DEVICE_PUSH_TOKEN = None
-finger = None  # Fingerprint sensor instance
-fingerprint_initialized = False
 
 # Create required directories
 os.makedirs("static/images", exist_ok=True)
 os.makedirs("static/videos", exist_ok=True)
 os.makedirs("dataset", exist_ok=True)
-
-def initialize_fingerprint_sensor():
-    global finger, fingerprint_initialized, PI_HARDWARE_AVAILABLE
-    
-    for attempt in range(FINGERPRINT_RETRIES):
-        try:
-            # Close any existing serial connection
-            if finger and hasattr(finger, 'ser'):
-                finger.ser.close()
-            
-            # Initialize new connection
-            uart = serial.Serial(SERIAL_PORT, baudrate=SERIAL_BAUDRATE, timeout=1)
-            finger = Adafruit_Fingerprint(uart)
-            
-            # Verify password
-            if finger.verify_password():
-                logger.info("Fingerprint sensor initialized successfully")
-                fingerprint_initialized = True
-                return True
-            else:
-                logger.error("Failed to verify fingerprint sensor password")
-        
-        except Exception as e:
-            logger.error(f"Fingerprint initialization attempt {attempt + 1} failed: {e}")
-            time.sleep(2)  # Wait before retrying
-    
-    logger.error("All fingerprint initialization attempts failed")
-    fingerprint_initialized = False
-    PI_HARDWARE_AVAILABLE = False
-    return False
 
 # Hardware initialization
 def initialize_hardware():
@@ -108,7 +72,14 @@ def initialize_hardware():
         PI_HARDWARE_AVAILABLE = False
     
     # Fingerprint Sensor Setup
-    initialize_fingerprint_sensor()
+    try:
+        global uart, finger
+        uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
+        finger = Adafruit_Fingerprint(uart)
+        logger.info("Fingerprint sensor initialized")
+    except Exception as e:
+        logger.error(f"Fingerprint sensor initialization failed: {e}")
+        PI_HARDWARE_AVAILABLE = False
 
 # Lock control functions
 def unlock_lock_for_seconds(seconds=UNLOCK_DURATION):
@@ -173,39 +144,12 @@ def save_fingerprint_map(data):
         json.dump(data, f)
 
 def get_next_fingerprint_id():
-    try:
-        if finger.read_templates() != Adafruit_Fingerprint.OK:
-            logger.error("Failed to read fingerprint templates")
-            return None
-        
-        new_id = 0
-        while new_id in set(finger.templates):
-            new_id += 1
-            if new_id >= finger.library_size:
-                logger.error("Fingerprint storage is full")
-                return None
-        return new_id
-    except Exception as e:
-        logger.error(f"Error getting next fingerprint ID: {e}")
+    if finger.read_templates() != Adafruit_Fingerprint.OK:
         return None
-
-def wait_for_finger(timeout=FINGERPRINT_TIMEOUT):
-    start_time = time.time()
-    while time.time() - start_time < timeout:
-        try:
-            if finger.get_image() == Adafruit_Fingerprint.OK:
-                return True
-        except Exception as e:
-            logger.error(f"Error waiting for finger: {e}")
-            return False
-        time.sleep(0.1)
-    return False
-
-def check_fingerprint_sensor():
-    if not fingerprint_initialized:
-        if not initialize_fingerprint_sensor():
-            return False
-    return True
+    new_id = 0
+    while new_id in set(finger.templates):
+        new_id += 1
+    return new_id if new_id < finger.library_size else None
 
 # Video processing functions
 def save_video_clip(frames, filename="clip.avi", fps=10):
@@ -225,47 +169,15 @@ def save_video_clip(frames, filename="clip.avi", fps=10):
 
 def generate_frames():
     while True:
-        try:
-            if picam2 and PI_HARDWARE_AVAILABLE:
-                # Capture frame from camera
+        if picam2 and PI_HARDWARE_AVAILABLE:
+            try:
                 frame = picam2.capture_array()
-                
-                # Convert from BGR to RGB
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                
-                # Perform face detection and draw rectangles
-                face_locations = face_recognition.face_locations(rgb_frame)
-                for (top, right, bottom, left) in face_locations:
-                    cv2.rectangle(rgb_frame, (left, top), (right, bottom), (0, 255, 0), 2)
-                
-                # Encode the frame
-                ret, buffer = cv2.imencode('.jpg', rgb_frame)
-                if not ret:
-                    logger.error("Failed to encode frame")
-                    continue
-                
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            else:
-                # Generate a test pattern if camera isn't available
-                test_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-                cv2.putText(test_frame, "CAMERA UNAVAILABLE", (50, 240), 
-                           cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
-                ret, buffer = cv2.imencode('.jpg', test_frame)
-                yield (b'--frame\r\n'
-                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-                time.sleep(1)
-                
-        except Exception as e:
-            logger.error(f"Error in video feed generation: {str(e)}")
-            time.sleep(1)
-        else:
-            # Generate black frame if camera isn't available
-            black_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            ret, buffer = cv2.imencode('.jpg', black_frame)
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            time.sleep(0.1)
+                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                _, buffer = cv2.imencode('.jpg', rgb)
+                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            except Exception as e:
+                logger.error(f"Error generating video frame: {e}")
+        time.sleep(0.05)
 
 # Background detection threads
 def detect_motion():
@@ -354,75 +266,13 @@ def home():
 def video_feed():
     return Response(generate_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
-
 @app.route('/view')
 def view():
     return """
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-        <title>Live Camera Feed</title>
-        <style>
-            html, body {
-                margin: 0;
-                padding: 0;
-                background: #000;
-                height: 100%;
-                overflow: hidden;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-            }
-            #video {
-                max-width: 100vw;
-                max-height: 100vh;
-                object-fit: contain;
-                border: 2px solid #444;
-            }
-            #status {
-                position: absolute;
-                top: 10px;
-                left: 10px;
-                color: #0f0;
-                background: rgba(0, 0, 0, 0.6);
-                padding: 4px 8px;
-                font-family: monospace;
-                border-radius: 4px;
-            }
-        </style>
-    </head>
-    <body>
-        <div id="status">Connecting...</div>
-        <img id="video" src="" alt="Video feed" />
-        <script>
-            const video = document.getElementById('video');
-            const status = document.getElementById('status');
-
-            function loadFeed() {
-                const timestamp = Date.now();
-                video.src = '/video_feed?' + timestamp;
-            }
-
-            video.onload = () => {
-                status.textContent = "Connected";
-                status.style.color = "#0f0";
-                setTimeout(() => status.style.display = "none", 2000);
-            };
-
-            video.onerror = () => {
-                status.textContent = "Connection lost. Retrying...";
-                status.style.color = "#f00";
-                setTimeout(loadFeed, 1000);
-            };
-
-            loadFeed();
-        </script>
-    </body>
-    </html>
+    <html><body style="margin:0">
+    <img src="/video_feed" style="width:100vw;height:100vh;object-fit:contain;" />
+    </body></html>
     """
-
 
 @app.route('/favicon.ico')
 def favicon():
@@ -514,110 +364,65 @@ def capture_face():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
-    if not check_fingerprint_sensor():
-        return jsonify({"status": "error", "message": "Fingerprint hardware not available"}), 503
-
     name = request.form.get('name')
     if not name:
         return jsonify({"status": "error", "message": "Name is required"}), 400
-
-    try:
-        # Get next available ID
-        new_id = get_next_fingerprint_id()
-        if new_id is None:
-            return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
-
-        # First finger scan
-        logger.info("Place finger to scan (first time)...")
-        if not wait_for_finger():
-            return jsonify({"status": "error", "message": "Finger not detected (timeout)"}), 408
-        
-        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "First scan failed"}), 500
-
-        logger.info("Remove finger...")
+    
+    new_id = get_next_fingerprint_id()
+    if new_id is None:
+        return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
+    
+    for i in range(1, 3):  # Need two samples
+        while finger.get_image() != Adafruit_Fingerprint.OK:
+            time.sleep(0.5)
+        if finger.image_2_tz(i) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": f"Template {i} creation failed"}), 500
+        time.sleep(1)
         while finger.get_image() != Adafruit_Fingerprint.NOFINGER:
             time.sleep(0.1)
-
-        # Second finger scan
-        logger.info("Place same finger again...")
-        if not wait_for_finger():
-            return jsonify({"status": "error", "message": "Finger not detected (timeout)"}), 408
-        
-        if finger.image_2_tz(2) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Second scan failed"}), 500
-
-        # Create model
-        if finger.create_model() != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Failed to create fingerprint model"}), 500
-
-        # Store model
-        if finger.store_model(new_id) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
-
-        # Save mapping
+    
+    if finger.create_model() != Adafruit_Fingerprint.OK:
+        return jsonify({"status": "error", "message": "Model creation failed"}), 500
+    
+    if finger.store_model(new_id) == Adafruit_Fingerprint.OK:
         fp_map = load_fingerprint_map()
         fp_map[str(new_id)] = name
         save_fingerprint_map(fp_map)
-
         return jsonify({
             "status": "success", 
             "message": f"Fingerprint enrolled with ID {new_id}",
-            "id": new_id,
-            "name": name
+            "id": new_id
         })
-
-    except Exception as e:
-        logger.error(f"Fingerprint enrollment error: {e}")
-        # Attempt to reinitialize sensor on failure
-        initialize_fingerprint_sensor()
-        return jsonify({"status": "error", "message": f"Enrollment failed: {str(e)}"}), 500
+    return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
 
 @app.route('/scan_fingerprint', methods=['GET'])
 def scan_fingerprint():
-    if not check_fingerprint_sensor():
-        return jsonify({"status": "error", "message": "Fingerprint hardware not available"}), 503
-
     try:
-        logger.info("Waiting for finger...")
-        if not wait_for_finger():
-            return jsonify({"status": "error", "message": "Finger not detected (timeout)"}), 408
-
+        while finger.get_image() != Adafruit_Fingerprint.OK:
+            time.sleep(0.5)
+        
         if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Failed to process fingerprint"}), 500
-
-        result = finger.finger_fast_search()
-        if result == Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Template creation failed"}), 500
+        
+        if finger.finger_search() == Adafruit_Fingerprint.OK:
+            matched_id = finger.finger_id
+            confidence = finger.confidence
             fp_map = load_fingerprint_map()
-            name = fp_map.get(str(finger.finger_id), "Unknown")
+            name = fp_map.get(str(matched_id), "Unknown")
             
             if name != "Unknown":
                 Thread(target=unlock_lock_for_seconds, daemon=True).start()
             
             return jsonify({
                 "status": "success",
-                "id": finger.finger_id,
+                "id": matched_id,
                 "name": name,
-                "confidence": finger.confidence
+                "confidence": confidence
             })
-        else:
-            return jsonify({"status": "error", "message": "No match found"}), 404
-
+        return jsonify({"status": "error", "message": "No matching fingerprint found"}), 404
     except Exception as e:
         logger.error(f"Fingerprint scan error: {e}")
-        # Attempt to reinitialize sensor on failure
-        initialize_fingerprint_sensor()
-        return jsonify({"status": "error", "message": f"Scan failed: {str(e)}"}), 500
-
-@app.route('/fingerprint_status', methods=['GET'])
-def fingerprint_status():
-    status = {
-        "initialized": fingerprint_initialized,
-        "hardware_available": PI_HARDWARE_AVAILABLE,
-        "templates_count": len(finger.templates) if fingerprint_initialized else 0,
-        "library_size": finger.library_size if fingerprint_initialized else 0
-    }
-    return jsonify(status)
+        return jsonify({"status": "error", "message": "Fingerprint scan failed"}), 500
 
 @app.route('/detect', methods=['GET'])
 def get_detections():
@@ -632,7 +437,6 @@ def get_detections():
 def after_request(response):
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     return response
 
 if __name__ == '__main__':
