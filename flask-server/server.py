@@ -405,14 +405,15 @@ def enroll_fingerprint():
 
 @app.route('/scan_fingerprint', methods=['GET'])
 def scan_fingerprint():
+    FINGERPRINT_OK = 0
     try:
-        while finger.get_image() != AF.OK:
+        while finger.get_image() != FINGERPRINT_OK:
             time.sleep(0.5)
         
-        if finger.image_2_tz(1) != AF.OK:
+        if finger.image_2_tz(1) != FINGERPRINT_OK:
             return jsonify({"status": "error", "message": "Template creation failed"}), 500
         
-        if finger.finger_search() == AF.OK:
+        if finger.finger_search() == FINGERPRINT_OK:
             matched_id = finger.finger_id
             confidence = finger.confidence
             fp_map = load_fingerprint_map()
@@ -430,7 +431,8 @@ def scan_fingerprint():
         return jsonify({"status": "error", "message": "No matching fingerprint found"}), 404
     except Exception as e:
         logger.error(f"Fingerprint scan error: {e}")
-        return jsonify({"status": "error", "message": "Fingerprint scan failed"}), 500
+        return jsonify({"status": "error", "message": f"Fingerprint scan failed: {str(e)}"}), 500
+
 
 @app.route('/detect', methods=['GET'])
 def get_detections():
