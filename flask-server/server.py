@@ -364,36 +364,45 @@ def capture_face():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
-    name = request.form.get('name')
-    if not name:
-        return jsonify({"status": "error", "message": "Name is required"}), 400
-    
-    new_id = get_next_fingerprint_id()
-    if new_id is None:
-        return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
-    
-    for i in range(1, 3):  # Need two samples
-        while finger.get_image() != Adafruit_Fingerprint.OK:
-            time.sleep(0.5)
-        if finger.image_2_tz(i) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": f"Template {i} creation failed"}), 500
-        time.sleep(1)
-        while finger.get_image() != Adafruit_Fingerprint.NOFINGER:
-            time.sleep(0.1)
-    
-    if finger.create_model() != Adafruit_Fingerprint.OK:
-        return jsonify({"status": "error", "message": "Model creation failed"}), 500
-    
-    if finger.store_model(new_id) == Adafruit_Fingerprint.OK:
-        fp_map = load_fingerprint_map()
-        fp_map[str(new_id)] = name
-        save_fingerprint_map(fp_map)
-        return jsonify({
-            "status": "success", 
-            "message": f"Fingerprint enrolled with ID {new_id}",
-            "id": new_id
-        })
-    return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
+    try:
+        name = request.form.get('name')
+        if not name:
+            return jsonify({"status": "error", "message": "Name is required"}), 400
+
+        new_id = get_next_fingerprint_id()
+        if new_id is None:
+            return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
+
+        for i in range(1, 3):  # Two samples needed
+            while finger.get_image() != Adafruit_Fingerprint.OK:
+                time.sleep(0.5)
+
+            if finger.image_2_tz(i) != Adafruit_Fingerprint.OK:
+                return jsonify({"status": "error", "message": f"Template {i} creation failed"}), 500
+
+            time.sleep(1)
+            while finger.get_image() != Adafruit_Fingerprint.NOFINGER:
+                time.sleep(0.1)
+
+        if finger.create_model() != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Model creation failed"}), 500
+
+        if finger.store_model(new_id) == Adafruit_Fingerprint.OK:
+            fp_map = load_fingerprint_map()
+            fp_map[str(new_id)] = name
+            save_fingerprint_map(fp_map)
+            return jsonify({
+                "status": "success",
+                "message": f"Fingerprint enrolled with ID {new_id}",
+                "id": new_id
+            })
+
+        return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
+
+    except Exception as e:
+        logger.error(f"Enroll fingerprint error: {e}")
+        return jsonify({"status": "error", "message": f"Internal error: {str(e)}"}), 500
+
 
 @app.route('/scan_fingerprint', methods=['GET'])
 def scan_fingerprint():
