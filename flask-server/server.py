@@ -26,6 +26,7 @@ DETECTION_HISTORY_LIMIT = 50
 UNLOCK_DURATION = 5  # seconds
 MOTION_THRESHOLD = 800
 MOTION_COOLDOWN = 10  # seconds
+FINGERPRINT_TIMEOUT = 10  # seconds
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -43,6 +44,7 @@ detection_lock = Lock()
 latest_detections = []
 frame_buffer = deque(maxlen=FRAME_BUFFER_SIZE)
 EXPO_DEVICE_PUSH_TOKEN = None
+finger = None  # Fingerprint sensor instance
 
 # Create required directories
 os.makedirs("static/images", exist_ok=True)
@@ -51,7 +53,7 @@ os.makedirs("dataset", exist_ok=True)
 
 # Hardware initialization
 def initialize_hardware():
-    global picam2, PI_HARDWARE_AVAILABLE
+    global picam2, PI_HARDWARE_AVAILABLE, finger
     
     # GPIO Setup
     GPIO.setwarnings(False)
@@ -73,13 +75,17 @@ def initialize_hardware():
     
     # Fingerprint Sensor Setup
     try:
-        global uart, finger
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
-        logger.info("Fingerprint sensor initialized")
+        if finger.verify_password():
+            logger.info("Fingerprint sensor initialized successfully")
+        else:
+            logger.error("Failed to verify fingerprint sensor password")
+            PI_HARDWARE_AVAILABLE = False
     except Exception as e:
         logger.error(f"Fingerprint sensor initialization failed: {e}")
         PI_HARDWARE_AVAILABLE = False
+        finger = None
 
 # Lock control functions
 def unlock_lock_for_seconds(seconds=UNLOCK_DURATION):
@@ -144,12 +150,29 @@ def save_fingerprint_map(data):
         json.dump(data, f)
 
 def get_next_fingerprint_id():
-    if finger.read_templates() != Adafruit_Fingerprint.OK:
+    try:
+        if finger.read_templates() != Adafruit_Fingerprint.OK:
+            logger.error("Failed to read fingerprint templates")
+            return None
+        
+        new_id = 0
+        while new_id in set(finger.templates):
+            new_id += 1
+            if new_id >= finger.library_size:
+                logger.error("Fingerprint storage is full")
+                return None
+        return new_id
+    except Exception as e:
+        logger.error(f"Error getting next fingerprint ID: {e}")
         return None
-    new_id = 0
-    while new_id in set(finger.templates):
-        new_id += 1
-    return new_id if new_id < finger.library_size else None
+
+def wait_for_finger(timeout=FINGERPRINT_TIMEOUT):
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        if finger.get_image() == Adafruit_Fingerprint.OK:
+            return True
+        time.sleep(0.1)
+    return False
 
 # Video processing functions
 def save_video_clip(frames, filename="clip.avi", fps=10):
@@ -364,65 +387,96 @@ def capture_face():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
+    if not PI_HARDWARE_AVAILABLE or finger is None:
+        return jsonify({"status": "error", "message": "Fingerprint hardware not available"}), 503
+
     name = request.form.get('name')
     if not name:
         return jsonify({"status": "error", "message": "Name is required"}), 400
-    
-    new_id = get_next_fingerprint_id()
-    if new_id is None:
-        return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
-    
-    for i in range(1, 3):  # Need two samples
-        while finger.get_image() != Adafruit_Fingerprint.OK:
-            time.sleep(0.5)
-        if finger.image_2_tz(i) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": f"Template {i} creation failed"}), 500
-        time.sleep(1)
+
+    try:
+        # Get next available ID
+        new_id = get_next_fingerprint_id()
+        if new_id is None:
+            return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
+
+        # First finger scan
+        logger.info("Place finger to scan (first time)...")
+        if not wait_for_finger():
+            return jsonify({"status": "error", "message": "Finger not detected (timeout)"}), 408
+        
+        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "First scan failed"}), 500
+
+        logger.info("Remove finger...")
         while finger.get_image() != Adafruit_Fingerprint.NOFINGER:
             time.sleep(0.1)
-    
-    if finger.create_model() != Adafruit_Fingerprint.OK:
-        return jsonify({"status": "error", "message": "Model creation failed"}), 500
-    
-    if finger.store_model(new_id) == Adafruit_Fingerprint.OK:
+
+        # Second finger scan
+        logger.info("Place same finger again...")
+        if not wait_for_finger():
+            return jsonify({"status": "error", "message": "Finger not detected (timeout)"}), 408
+        
+        if finger.image_2_tz(2) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Second scan failed"}), 500
+
+        # Create model
+        if finger.create_model() != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Failed to create fingerprint model"}), 500
+
+        # Store model
+        if finger.store_model(new_id) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
+
+        # Save mapping
         fp_map = load_fingerprint_map()
         fp_map[str(new_id)] = name
         save_fingerprint_map(fp_map)
+
         return jsonify({
             "status": "success", 
             "message": f"Fingerprint enrolled with ID {new_id}",
-            "id": new_id
+            "id": new_id,
+            "name": name
         })
-    return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
+
+    except Exception as e:
+        logger.error(f"Fingerprint enrollment error: {e}")
+        return jsonify({"status": "error", "message": f"Enrollment failed: {str(e)}"}), 500
 
 @app.route('/scan_fingerprint', methods=['GET'])
 def scan_fingerprint():
+    if not PI_HARDWARE_AVAILABLE or finger is None:
+        return jsonify({"status": "error", "message": "Fingerprint hardware not available"}), 503
+
     try:
-        while finger.get_image() != Adafruit_Fingerprint.OK:
-            time.sleep(0.5)
-        
+        logger.info("Waiting for finger...")
+        if not wait_for_finger():
+            return jsonify({"status": "error", "message": "Finger not detected (timeout)"}), 408
+
         if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Template creation failed"}), 500
-        
-        if finger.finger_search() == Adafruit_Fingerprint.OK:
-            matched_id = finger.finger_id
-            confidence = finger.confidence
+            return jsonify({"status": "error", "message": "Failed to process fingerprint"}), 500
+
+        result = finger.finger_fast_search()
+        if result == Adafruit_Fingerprint.OK:
             fp_map = load_fingerprint_map()
-            name = fp_map.get(str(matched_id), "Unknown")
+            name = fp_map.get(str(finger.finger_id), "Unknown")
             
             if name != "Unknown":
                 Thread(target=unlock_lock_for_seconds, daemon=True).start()
             
             return jsonify({
                 "status": "success",
-                "id": matched_id,
+                "id": finger.finger_id,
                 "name": name,
-                "confidence": confidence
+                "confidence": finger.confidence
             })
-        return jsonify({"status": "error", "message": "No matching fingerprint found"}), 404
+        else:
+            return jsonify({"status": "error", "message": "No match found"}), 404
+
     except Exception as e:
         logger.error(f"Fingerprint scan error: {e}")
-        return jsonify({"status": "error", "message": "Fingerprint scan failed"}), 500
+        return jsonify({"status": "error", "message": f"Scan failed: {str(e)}"}), 500
 
 @app.route('/detect', methods=['GET'])
 def get_detections():
