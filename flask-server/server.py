@@ -225,26 +225,40 @@ def save_video_clip(frames, filename="clip.avi", fps=10):
 
 def generate_frames():
     while True:
-        if picam2 and PI_HARDWARE_AVAILABLE:
-            try:
+        try:
+            if picam2 and PI_HARDWARE_AVAILABLE:
+                # Capture frame from camera
                 frame = picam2.capture_array()
-                rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 
-                # Draw rectangle on face detections
-                face_locations = face_recognition.face_locations(rgb)
+                # Convert from BGR to RGB
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                
+                # Perform face detection and draw rectangles
+                face_locations = face_recognition.face_locations(rgb_frame)
                 for (top, right, bottom, left) in face_locations:
-                    cv2.rectangle(rgb, (left, top), (right, bottom), (0, 255, 0), 2)
+                    cv2.rectangle(rgb_frame, (left, top), (right, bottom), (0, 255, 0), 2)
                 
-                # Encode frame as JPEG
-                ret, buffer = cv2.imencode('.jpg', rgb)
+                # Encode the frame
+                ret, buffer = cv2.imencode('.jpg', rgb_frame)
                 if not ret:
+                    logger.error("Failed to encode frame")
                     continue
                 
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-            except Exception as e:
-                logger.error(f"Error generating video frame: {e}")
+            else:
+                # Generate a test pattern if camera isn't available
+                test_frame = np.zeros((480, 640, 3), dtype=np.uint8)
+                cv2.putText(test_frame, "CAMERA UNAVAILABLE", (50, 240), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2)
+                ret, buffer = cv2.imencode('.jpg', test_frame)
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
                 time.sleep(1)
+                
+        except Exception as e:
+            logger.error(f"Error in video feed generation: {str(e)}")
+            time.sleep(1)
         else:
             # Generate black frame if camera isn't available
             black_frame = np.zeros((480, 640, 3), dtype=np.uint8)
