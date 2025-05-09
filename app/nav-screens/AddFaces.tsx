@@ -77,20 +77,37 @@ const AddFaces: React.FC = () => {
 
   const handleEnrollFingerprint = async () => {
     if (!name.trim()) return Alert.alert('Missing Info', 'Please enter a name.');
-
+  
     const formData = new FormData();
     formData.append('name', name);
-
+  
     Alert.alert('Fingerprint', 'Place your finger on the sensor now.');
-
+  
     try {
       setLoading(true);
       const res = await fetch(`${NGROK_URL}/enroll_fingerprint`, {
         method: 'POST',
         body: formData,
       });
-      const data = await res.json();
-      Alert.alert('Fingerprint', data.message);
+  
+      const text = await res.text();
+  
+      // Try parsing JSON manually to catch HTML errors
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error('Failed to parse fingerprint response:', text);
+        Alert.alert('Internal Error', 'Server returned an invalid response.');
+        return;
+      }
+  
+      if (res.ok && data.status === 'success') {
+        Alert.alert('Fingerprint', data.message);
+      } else {
+        Alert.alert('Error', data.message || 'Fingerprint enrollment failed.');
+      }
+  
     } catch (err) {
       console.error(err);
       Alert.alert('Error', 'Could not enroll fingerprint.');
@@ -98,6 +115,7 @@ const AddFaces: React.FC = () => {
       setLoading(false);
     }
   };
+  
 
   return (
     <KeyboardAvoidingView
