@@ -427,11 +427,13 @@ def scan_fingerprint():
 @app.route('/detect', methods=['GET'])
 def get_detections():
     with detection_lock:
+        logger.info(f"Returning {len(latest_detections)} alerts")
         return jsonify({
             "status": "success", 
-            "detections": latest_detections,
+            "detected_faces": latest_detections,
             "count": len(latest_detections)
         })
+
 
 @app.after_request
 def after_request(response):
