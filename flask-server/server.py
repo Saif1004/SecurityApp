@@ -122,7 +122,7 @@ def lock_immediately():
     GPIO.output(LOCK_GPIO_PIN, 1)
     GPIO.setup(LOCK_GPIO_PIN, GPIO.IN)
 
-# Face recognition functions (keep existing)
+# Face recognition functions
 def load_encodings():
     global known_face_encodings, known_face_names
     try:
@@ -207,7 +207,7 @@ def check_fingerprint_sensor():
             return False
     return True
 
-# Video processing functions (keep existing)
+# Video processing functions
 def save_video_clip(frames, filename="clip.avi", fps=10):
     if not frames:
         return None
@@ -229,19 +229,31 @@ def generate_frames():
             try:
                 frame = picam2.capture_array()
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                _, buffer = cv2.imencode('.jpg', rgb)
-                yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+                
+                # Draw rectangle on face detections
+                face_locations = face_recognition.face_locations(rgb)
+                for (top, right, bottom, left) in face_locations:
+                    cv2.rectangle(rgb, (left, top), (right, bottom), (0, 255, 0), 2)
+                
+                # Encode frame as JPEG
+                ret, buffer = cv2.imencode('.jpg', rgb)
+                if not ret:
+                    continue
+                
+                yield (b'--frame\r\n'
+                       b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
             except Exception as e:
                 logger.error(f"Error generating video frame: {e}")
                 time.sleep(1)
         else:
             # Generate black frame if camera isn't available
             black_frame = np.zeros((480, 640, 3), dtype=np.uint8)
-            _, buffer = cv2.imencode('.jpg', black_frame)
-            yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
+            ret, buffer = cv2.imencode('.jpg', black_frame)
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
             time.sleep(0.1)
 
-# Background detection threads (keep existing)
+# Background detection threads
 def detect_motion():
     last_frame_gray = None
     last_motion_time = 0
@@ -319,7 +331,145 @@ def detect_faces():
                 logger.error(f"Face detection error: {e}")
         time.sleep(2)
 
-# API Routes (keep existing routes, update fingerprint endpoints)
+# API Routes
+@app.route('/')
+def home():
+    return 'Face, Motion & Fingerprint Detection Server Running'
+
+@app.route('/video_feed')
+def video_feed():
+    """Video streaming route. Put this in the src attribute of an img tag."""
+    return Response(generate_frames(),
+                   mimetype='multipart/x-mixed-replace; boundary=frame')
+
+@app.route('/view')
+def view():
+    """Video streaming home page."""
+    return """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Live View</title>
+        <style>
+            body { margin: 0; padding: 0; background-color: #000; }
+            #video-container { width: 100%; height: 100vh; display: flex; justify-content: center; align-items: center; }
+            #video-feed { max-width: 100%; max-height: 100%; object-fit: contain; }
+        </style>
+    </head>
+    <body>
+        <div id="video-container">
+            <img id="video-feed" src="/video_feed" />
+        </div>
+        <script>
+            const videoFeed = document.getElementById('video-feed');
+            
+            // Auto-reconnect if feed disconnects
+            videoFeed.onerror = function() {
+                console.log('Video feed error, reconnecting...');
+                setTimeout(function() {
+                    videoFeed.src = '/video_feed?' + new Date().getTime();
+                }, 1000);
+            };
+            
+            // Periodically check connection
+            setInterval(() => {
+                if (videoFeed.naturalWidth === 0) {
+                    console.log('Video feed stalled, reconnecting...');
+                    videoFeed.src = '/video_feed?' + new Date().getTime();
+                }
+            }, 5000);
+        </script>
+    </body>
+    </html>
+    """
+
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory('static', 'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+@app.route('/static/videos/<path:filename>')
+def serve_video(filename):
+    return send_file(os.path.join("static/videos", filename), mimetype='video/x-msvideo')
+
+@app.route('/dataset/<path:filename>')
+def serve_dataset(filename):
+    return send_from_directory('dataset', filename)
+
+@app.route('/users', methods=['GET'])
+def list_users():
+    users = {}
+    for person in os.listdir('dataset'):
+        path = os.path.join('dataset', person)
+        if os.path.isdir(path):
+            users[person] = [f"/dataset/{person}/{img}" for img in os.listdir(path)]
+    return jsonify(users)
+
+@app.route('/delete_user/<name>', methods=['DELETE'])
+def delete_user(name):
+    try:
+        folder = os.path.join("dataset", name)
+        if os.path.exists(folder):
+            for file in os.listdir(folder):
+                os.remove(os.path.join(folder, file))
+            os.rmdir(folder)
+            
+            # Also remove from fingerprint map if exists
+            fp_map = load_fingerprint_map()
+            for fid, fname in list(fp_map.items()):
+                if fname == name:
+                    del fp_map[fid]
+            save_fingerprint_map(fp_map)
+            
+            Thread(target=retrain_encodings, daemon=True).start()
+            return jsonify({"status": "success", "message": f"User '{name}' deleted."})
+        return jsonify({"status": "error", "message": "User not found"}), 404
+    except Exception as e:
+        logger.error(f"Error deleting user {name}: {e}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/register_token', methods=['POST'])
+def register_token():
+    global EXPO_DEVICE_PUSH_TOKEN
+    data = request.get_json()
+    token = data.get('token')
+    if token:
+        EXPO_DEVICE_PUSH_TOKEN = token
+        return jsonify({"status": "success", "message": "Token registered"})
+    return jsonify({"status": "error", "message": "No token provided"}), 400
+
+@app.route('/unlock', methods=['POST'])
+def unlock_door():
+    Thread(target=unlock_lock_for_seconds, daemon=True).start()
+    return jsonify({"status": "success", "message": "Door unlocked"})
+
+@app.route('/lock', methods=['POST'])
+def lock_door():
+    lock_immediately()
+    return jsonify({"status": "success", "message": "Door locked"})
+
+@app.route('/capture_face', methods=['POST'])
+def capture_face():
+    name = request.form.get('name')
+    if not name:
+        return jsonify({"status": "error", "message": "Name is required"}), 400
+    
+    folder = os.path.join("dataset", name)
+    os.makedirs(folder, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S%f")
+    filename = f"{name}_{timestamp}.jpg"
+    path = os.path.join(folder, filename)
+    
+    if picam2 and PI_HARDWARE_AVAILABLE:
+        try:
+            frame = picam2.capture_array()
+            cv2.imwrite(path, frame)
+            logger.info(f"Captured image for {name}: {filename}")
+            Thread(target=retrain_encodings, daemon=True).start()
+            return jsonify({"status": "success", "message": f"Photo saved as {filename}"})
+        except Exception as e:
+            logger.error(f"Error capturing face: {e}")
+            return jsonify({"status": "error", "message": "Failed to capture image"}), 500
+    return jsonify({"status": "error", "message": "Camera not available"}), 503
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
@@ -418,7 +568,6 @@ def scan_fingerprint():
         initialize_fingerprint_sensor()
         return jsonify({"status": "error", "message": f"Scan failed: {str(e)}"}), 500
 
-# Add a new endpoint to check fingerprint sensor status
 @app.route('/fingerprint_status', methods=['GET'])
 def fingerprint_status():
     status = {
@@ -429,7 +578,21 @@ def fingerprint_status():
     }
     return jsonify(status)
 
-# Keep all other existing routes and functions
+@app.route('/detect', methods=['GET'])
+def get_detections():
+    with detection_lock:
+        return jsonify({
+            "status": "success", 
+            "detections": latest_detections,
+            "count": len(latest_detections)
+        })
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
+    response.headers.add('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    return response
 
 if __name__ == '__main__':
     initialize_hardware()
