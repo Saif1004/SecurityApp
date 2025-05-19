@@ -6,14 +6,14 @@ import tw from 'twrnc';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import { Ionicons } from '@expo/vector-icons';
 
-const NGROK_URL = 'https://cerberus.ngrok.dev'; // your ngrok URL
+const NGROK_URL = 'https://cerberus.ngrok.dev';
 
 const LiveViewScreen = () => {
   const [loading, setLoading] = useState(true);
   const [serverUp, setServerUp] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
   const [dimensions, setDimensions] = useState(Dimensions.get('window'));
-  const [webKey, setWebKey] = useState(0); // <--- Add a key for WebView to force reload
+  const [webKey, setWebKey] = useState(0);
 
   useEffect(() => {
     fetch(`${NGROK_URL}/`)
@@ -25,7 +25,7 @@ const LiveViewScreen = () => {
 
     const subscription = Dimensions.addEventListener('change', ({ window }) => {
       setDimensions(window);
-      setWebKey(prev => prev + 1); // <--- update key to re-render WebView
+      setWebKey(prev => prev + 1); 
     });
 
     return () => {
@@ -41,7 +41,7 @@ const LiveViewScreen = () => {
       await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
       setIsLandscape(true);
     }
-    setWebKey(prev => prev + 1); // <--- Also bump the key when manually switching
+    setWebKey(prev => prev + 1);
   };
 
   if (loading) {
@@ -66,7 +66,7 @@ const LiveViewScreen = () => {
     <View style={tw`flex-1 bg-black`}>
       <StatusBar style="light" backgroundColor="#000" hidden={isLandscape} /> 
       <WebView
-        key={webKey} // <-- Key forces re-render
+        key={webKey} 
         source={{ uri: `${NGROK_URL}/view` }}
         originWhitelist={['*']}
         javaScriptEnabled

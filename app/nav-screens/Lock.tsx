@@ -1,11 +1,10 @@
-// app/nav-screens/Lock.tsx
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, Alert, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import tw from 'twrnc';
 import * as Haptics from 'expo-haptics';
 
-const NGROK_URL = 'https://cerberus.ngrok.dev'; // Your server URL
+const NGROK_URL = 'https://cerberus.ngrok.dev'; 
 
 export default function LockScreen() {
   const [loading, setLoading] = useState(false);

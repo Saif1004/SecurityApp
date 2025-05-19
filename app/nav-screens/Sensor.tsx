@@ -7,7 +7,6 @@ export default function MotionSensorScreen() {
   const [motionEnabled, setMotionEnabled] = useState(true);
 
   useEffect(() => {
-    // Fetch current motion detection status
     fetch(`${BACKEND_URL}/motion_status`)
       .then(res => res.json())
       .then(data => setMotionEnabled(data.motion_enabled))
@@ -28,7 +27,7 @@ export default function MotionSensorScreen() {
       if (result.status !== 'success') throw new Error();
     } catch {
       Alert.alert('Error', 'Failed to update motion status');
-      setMotionEnabled(!newStatus); // rollback on failure
+      setMotionEnabled(!newStatus); 
     }
   };
 

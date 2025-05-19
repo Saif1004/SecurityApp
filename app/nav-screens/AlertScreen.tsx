@@ -1,4 +1,3 @@
-// AlertScreen.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, Image, FlatList, TouchableOpacity,

@@ -13,6 +13,22 @@ from threading import Thread, Lock
 from collections import deque
 from imutils import paths
 import logging
+import json
+
+FINGERPRINT_MAP_FILE = "fingerprint_map.json"
+fingerprint_map = {}
+pending_verification = None
+pending_lock = Lock()
+
+if os.path.exists(FINGERPRINT_MAP_FILE):
+    with open(FINGERPRINT_MAP_FILE, "r") as f:
+        fingerprint_map = json.load(f)
+
+def save_fingerprint_map():
+    with open(FINGERPRINT_MAP_FILE, "w") as f:
+        json.dump(fingerprint_map, f)
+
+
 
 # Logging
 logging.basicConfig(level=logging.INFO)
@@ -154,6 +170,7 @@ def detect_motion():
 
 
 def detect_faces():
+    global pending_verification
     while True:
         if picam2 and PI_HARDWARE_AVAILABLE:
             try:
@@ -161,18 +178,39 @@ def detect_faces():
                 rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 face_locations = face_recognition.face_locations(rgb_frame)
                 face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
                 for (top, right, bottom, left), face_encoding in zip(face_locations, face_encodings):
                     matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.5)
                     name = "Unknown"
                     if True in matches:
                         name = known_face_names[matches.index(True)]
+
                     timestamp = datetime.now().isoformat()
                     img_filename = f"static/images/{timestamp.replace(':', '-')}.jpg"
                     frame_bgr = cv2.cvtColor(rgb_frame, cv2.COLOR_RGB2BGR)
                     cv2.imwrite(img_filename, frame_bgr)
+
                     logger.info(f"Face detected: {name} at {timestamp}")
+
+                    # Only proceed if it's a known face
                     if name != "Unknown":
-                        Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
+                        with pending_lock:
+                            pending_verification = {
+                                "name": name,
+                                "timestamp": timestamp
+                            }
+                        logger.info(f"{name} recognized. Awaiting fingerprint for unlock.")
+
+                        with detection_lock:
+                            latest_detections.insert(0, {
+                                "name": name,
+                                "timestamp": timestamp,
+                                "image": f"/{img_filename}",
+                                "video": None,
+                                "awaiting_fingerprint": True
+                            })
+
+                    # Send push notification regardless
                     if EXPO_DEVICE_PUSH_TOKEN:
                         detection_entry = {
                             "name": name,
@@ -181,9 +219,66 @@ def detect_faces():
                             "video": None
                         }
                         send_push_notification(EXPO_DEVICE_PUSH_TOKEN, detection_entry)
+
             except Exception as e:
                 logger.error(f"Face detection error: {e}")
+
         time.sleep(2)
+
+
+def fingerprint_verification_loop():
+    from adafruit_fingerprint import Adafruit_Fingerprint
+    import serial
+
+    try:
+        uart = serial.Serial("/dev/ttyS0", baudrate=57600, timeout=1)
+        finger = Adafruit_Fingerprint(uart)
+    except Exception as e:
+        logger.error(f"Fingerprint sensor init failed: {e}")
+        return
+
+    while True:
+        time.sleep(1)
+
+        with pending_lock:
+            if not pending_verification:
+                continue
+            expected_name = pending_verification["name"]
+            timestamp_str = pending_verification["timestamp"]
+
+        # ⏳ Check if more than 30 seconds have passed
+        try:
+            ts = datetime.fromisoformat(timestamp_str)
+            if (datetime.now() - ts).total_seconds() > 30:
+                logger.warning("Fingerprint timeout — clearing pending verification.")
+                with pending_lock:
+                    pending_verification = None
+                continue
+        except Exception as e:
+            logger.error(f"Timestamp parse error: {e}")
+            with pending_lock:
+                pending_verification = None
+            continue
+
+        # 🔍 Fingerprint capture & match logic
+        if finger.get_image() != Adafruit_Fingerprint.OK:
+            continue
+        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+            continue
+        if finger.finger_search() != Adafruit_Fingerprint.OK:
+            continue
+
+        fingerprint_id = str(finger.finger_id)
+        matched_name = fingerprint_map.get(fingerprint_id)
+
+        if matched_name == expected_name:
+            logger.info(f"Fingerprint verified for {matched_name}. Unlocking.")
+            Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
+            with pending_lock:
+                pending_verification = None
+        else:
+            logger.warning(f"Fingerprint mismatch: expected {expected_name}, got {matched_name}")
+
 
 def send_push_notification(token, alert):
     message = {
@@ -202,6 +297,71 @@ def send_push_notification(token, alert):
 @app.route('/static/videos/<path:filename>')
 def serve_video(filename):
     return send_file(os.path.join("static/videos", filename), mimetype='video/x-msvideo')
+
+@app.route('/auth_status')
+def auth_status():
+    with pending_lock:
+        if pending_verification:
+            return jsonify({"awaiting_fingerprint": True, "name": pending_verification["name"]})
+        return jsonify({"awaiting_fingerprint": False})
+
+
+@app.route('/enroll_fingerprint', methods=['POST'])
+def enroll_fingerprint():
+    from adafruit_fingerprint import Adafruit_Fingerprint
+    import serial
+
+    username = request.form.get("name")
+    if not username:
+        return jsonify({"status": "error", "message": "Name required"}), 400
+
+    try:
+        uart = serial.Serial("/dev/ttyS0", baudrate=57600, timeout=1)
+        finger = Adafruit_Fingerprint(uart)
+
+        logger.info("Waiting for finger to enroll...")
+
+        while finger.get_image() != Adafruit_Fingerprint.OK:
+            pass
+
+        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Image conversion failed"})
+
+        logger.info("Remove finger...")
+        time.sleep(2)
+
+        while finger.get_image() != Adafruit_Fingerprint.NO_FINGER:
+            pass
+
+        logger.info("Place same finger again...")
+
+        while finger.get_image() != Adafruit_Fingerprint.OK:
+            pass
+
+        if finger.image_2_tz(2) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Second image conversion failed"})
+
+        if finger.create_model() != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Model creation failed"})
+
+        for i in range(1, 128):
+            if finger.load_model(i) != Adafruit_Fingerprint.OK:
+                position = i
+                break
+        else:
+            return jsonify({"status": "error", "message": "No empty slot found"})
+
+        if finger.store_model(position) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Store failed"})
+
+        fingerprint_map[str(position)] = username
+        save_fingerprint_map()
+
+        return jsonify({"status": "success", "message": f"Fingerprint enrolled for {username}", "fingerprint_id": position})
+    except Exception as e:
+        logger.error(f"Enroll error: {e}")
+        return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+
 
 
 @app.route('/')
@@ -293,6 +453,47 @@ def unlock_door():
 def lock_door():
     lock_immediately()
     return jsonify({"status": "success", "message": "Door locked"})
+
+@app.route('/verify_fingerprint', methods=['POST'])
+def verify_fingerprint():
+    from adafruit_fingerprint import Adafruit_Fingerprint
+    import serial
+
+    face_name = request.json.get("name")
+    if not face_name:
+        return jsonify({"status": "error", "message": "Missing face name"}), 400
+
+    try:
+        uart = serial.Serial("/dev/ttyS0", baudrate=57600, timeout=1)
+        finger = Adafruit_Fingerprint(uart)
+
+        logger.info("Waiting for valid finger...")
+
+        if finger.get_image() != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Failed to read fingerprint"})
+
+        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Image convert failed"})
+
+        if finger.finger_search() != Adafruit_Fingerprint.OK:
+            return jsonify({"status": "error", "message": "Fingerprint not recognized"})
+
+        fingerprint_id = str(finger.finger_id)
+        matched_name = fingerprint_map.get(fingerprint_id)
+
+        if matched_name != face_name:
+            logger.warning(f"Fingerprint mismatch: {matched_name} != {face_name}")
+            return jsonify({"status": "error", "message": "Fingerprint does not match recognized face"}), 403
+
+        logger.info(f"Verified: {matched_name}")
+        Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
+        return jsonify({"status": "success", "message": "Verified and unlocked"})
+
+    except Exception as e:
+        logger.error(f"Verify error: {e}")
+        return jsonify({"status": "error", "message": "Internal error"}), 500
+
+
 
 @app.route('/register_face', methods=['POST'])
 def register_face():
@@ -386,7 +587,9 @@ if __name__ == '__main__':
     lock_immediately()
     Thread(target=detect_motion, daemon=True).start()
     Thread(target=detect_faces, daemon=True).start()
+    Thread(target=fingerprint_verification_loop, daemon=True).start()  # NEW
     app.run(host='0.0.0.0', port=5000, threaded=True)
+
 
 
 #ngrok http --url=cerberus.ngrok.dev 5000

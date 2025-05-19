@@ -92,7 +92,6 @@ const AddFaces: React.FC = () => {
   
       const text = await res.text();
   
-      // Try parsing JSON manually to catch HTML errors
       let data;
       try {
         data = JSON.parse(text);

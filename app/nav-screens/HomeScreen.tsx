@@ -80,7 +80,6 @@ export default function HomeScreen() {
     <View style={tw`${isDark ? 'bg-black' : 'bg-gray-50'} flex-1 relative`}>
       <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      {/* Header */}
       <View style={tw`flex-row items-center justify-between px-6 pt-12`}>
         <View style={tw`flex-row items-center`}>
           <Image source={AegisShield} style={tw`w-10 h-10 mr-3`} />
@@ -107,7 +106,6 @@ export default function HomeScreen() {
         </View>
       </View>
 
-      {/* Body */}
       <ScrollView contentContainerStyle={tw`pb-40 pt-6`}>
         <View style={tw`w-11/12 h-0.5 ${isDark ? 'bg-gray-700' : 'bg-gray-300'} self-center`} />
 
