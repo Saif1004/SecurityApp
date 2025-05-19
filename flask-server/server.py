@@ -31,6 +31,7 @@ detection_lock = Lock()
 latest_detections = []
 frame_buffer = deque(maxlen=100)
 last_encoded_frame = None
+motion_detection_enabled = True
 
 # GPIO Setup
 LOCK_GPIO_PIN = 18
@@ -111,6 +112,9 @@ def detect_motion():
     last_motion_time = 0
     cooldown_seconds = 10
     while True:
+        if not motion_detection_enabled:
+            time.sleep(0.5)
+            continue
         if picam2 and PI_HARDWARE_AVAILABLE:
             try:
                 frame = picam2.capture_array()
@@ -146,6 +150,8 @@ def detect_motion():
             except Exception as e:
                 logger.error(f"Motion detection error: {e}")
         time.sleep(0.5)
+
+
 
 def detect_faces():
     while True:
@@ -214,6 +220,21 @@ def view():
     <img src="/video_feed" style="width:100vw;height:100vh;object-fit:contain;" />
     </body></html>
     """
+
+@app.route('/toggle_motion', methods=['POST'])
+def toggle_motion():
+    global motion_detection_enabled
+    data = request.get_json()
+    enabled = data.get("enabled")
+    if isinstance(enabled, bool):
+        motion_detection_enabled = enabled
+        return jsonify({"status": "success", "motion_enabled": motion_detection_enabled})
+    return jsonify({"status": "error", "message": "Invalid request"}), 400
+
+@app.route('/motion_status', methods=['GET'])
+def motion_status():
+    return jsonify({"motion_enabled": motion_detection_enabled})
+
 
 @app.route('/favicon.ico')
 def favicon():
