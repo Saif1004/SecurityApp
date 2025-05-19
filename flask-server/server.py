@@ -319,49 +319,60 @@ def enroll_fingerprint():
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
-
-        logger.info("Waiting for finger to enroll...")
-
-        while finger.get_image() != Adafruit_Fingerprint.OK:
-            pass
-
-        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Image conversion failed"})
-
-        logger.info("Remove finger...")
-        time.sleep(2)
-
-        while finger.get_image() != Adafruit_Fingerprint.NO_FINGER:
-            pass
-
-        logger.info("Place same finger again...")
-
-        while finger.get_image() != Adafruit_Fingerprint.OK:
-            pass
-
-        if finger.image_2_tz(2) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Second image conversion failed"})
-
-        if finger.create_model() != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Model creation failed"})
-
-        for i in range(1, 128):
-            if finger.load_model(i) != Adafruit_Fingerprint.OK:
-                position = i
-                break
-        else:
-            return jsonify({"status": "error", "message": "No empty slot found"})
-
-        if finger.store_model(position) != Adafruit_Fingerprint.OK:
-            return jsonify({"status": "error", "message": "Store failed"})
-
-        fingerprint_map[str(position)] = username
-        save_fingerprint_map()
-
-        return jsonify({"status": "success", "message": f"Fingerprint enrolled for {username}", "fingerprint_id": position})
     except Exception as e:
-        logger.error(f"Enroll error: {e}")
-        return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+        logger.error(f"Sensor init failed: {e}")
+        return jsonify({"status": "error", "message": "Sensor error"}), 500
+
+    def wait_for_finger(prompt, timeout=15):
+        logger.info(prompt)
+        start_time = time.time()
+        while time.time() - start_time < timeout:
+            if finger.get_image() == Adafruit_Fingerprint.OK:
+                return True
+            time.sleep(0.5)
+        return False
+
+    logger.info("Waiting for finger to enroll...")
+
+    if not wait_for_finger("Place finger"):
+        return jsonify({"status": "error", "message": "Timeout: No finger detected"})
+
+    if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+        return jsonify({"status": "error", "message": "Failed to convert image"})
+
+    logger.info("Remove finger...")
+    time.sleep(2)
+    while finger.get_image() != Adafruit_Fingerprint.NO_FINGER:
+        time.sleep(0.5)
+
+    logger.info("Place same finger again...")
+
+    if not wait_for_finger("Place same finger again"):
+        return jsonify({"status": "error", "message": "Timeout on second scan"})
+
+    if finger.image_2_tz(2) != Adafruit_Fingerprint.OK:
+        return jsonify({"status": "error", "message": "Second image conversion failed"})
+
+    if finger.create_model() != Adafruit_Fingerprint.OK:
+        return jsonify({"status": "error", "message": "Model creation failed"})
+
+    # Find empty slot
+    for i in range(1, 128):
+        if finger.load_model(i) != Adafruit_Fingerprint.OK:
+            position = i
+            break
+    else:
+        return jsonify({"status": "error", "message": "No empty slot found"})
+
+    if finger.store_model(position) != Adafruit_Fingerprint.OK:
+        return jsonify({"status": "error", "message": "Store failed"})
+
+    fingerprint_map[str(position)] = username
+    save_fingerprint_map()
+
+    logger.info(f"Fingerprint enrolled at ID {position} for {username}")
+    return jsonify({"status": "success", "message": f"Fingerprint enrolled for {username}", "fingerprint_id": position})
+
 
 
 
