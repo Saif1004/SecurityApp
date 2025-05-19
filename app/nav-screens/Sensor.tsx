@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Switch, StyleSheet, Alert } from 'react-native';
 
-const BACKEND_URL = 'http://<YOUR_FLASK_SERVER_IP>:5000';
+const BACKEND_URL = 'https://cerberus.ngrok.dev';
 
 export default function MotionSensorScreen() {
   const [motionEnabled, setMotionEnabled] = useState(true);
