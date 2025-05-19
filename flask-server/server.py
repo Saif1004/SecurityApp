@@ -231,7 +231,7 @@ def fingerprint_verification_loop():
     import serial
 
     try:
-        uart = serial.Serial("/dev/ttyS0", baudrate=57600, timeout=1)
+        uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
     except Exception as e:
         logger.error(f"Fingerprint sensor init failed: {e}")
@@ -316,7 +316,7 @@ def enroll_fingerprint():
         return jsonify({"status": "error", "message": "Name required"}), 400
 
     try:
-        uart = serial.Serial("/dev/ttyS0", baudrate=57600, timeout=1)
+        uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
 
         logger.info("Waiting for finger to enroll...")
@@ -464,7 +464,7 @@ def verify_fingerprint():
         return jsonify({"status": "error", "message": "Missing face name"}), 400
 
     try:
-        uart = serial.Serial("/dev/ttyS0", baudrate=57600, timeout=1)
+        uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
 
         logger.info("Waiting for valid finger...")
