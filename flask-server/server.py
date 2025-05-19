@@ -17,7 +17,8 @@ import json
 
 FINGERPRINT_MAP_FILE = "fingerprint_map.json"
 fingerprint_map = {}
-
+pending_verification = None
+pending_lock = Lock()
 
 if os.path.exists(FINGERPRINT_MAP_FILE):
     with open(FINGERPRINT_MAP_FILE, "r") as f:
@@ -47,8 +48,6 @@ latest_detections = []
 frame_buffer = deque(maxlen=100)
 last_encoded_frame = None
 motion_detection_enabled = True
-pending_verification = None
-pending_lock = Lock()
 
 # GPIO Setup
 LOCK_GPIO_PIN = 18
@@ -228,6 +227,7 @@ def detect_faces():
 
 
 def fingerprint_verification_loop():
+    global pending_verification
     from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
 
