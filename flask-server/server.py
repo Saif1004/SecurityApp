@@ -315,11 +315,11 @@ def auth_status():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
-    import adafruit_fingerprint
-    from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
 
     OK = adafruit_fingerprint.OK
+    NOFINGER = adafruit_fingerprint.NOFINGER
+    IMAGEFAIL = adafruit_fingerprint.IMAGEFAIL
 
     username = request.form.get("name")
     if not username:
@@ -328,54 +328,40 @@ def enroll_fingerprint():
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
-        NO_FINGER = finger.NO_FINGER
 
-        logger.info("Waiting to enroll fingerprint for %s", username)
+        logger.info("Enrolling fingerprint for user: %s", username)
 
         for img_num in [1, 2]:
-            if img_num == 1:
-                logger.info("Place finger on sensor...")
-            else:
-                logger.info("Place the same finger again...")
-
+            logger.info("Step %d: Place finger on sensor...", img_num)
             while True:
-                i = finger.get_image()
-                if i == OK:
-                    logger.info("Image taken")
+                result = finger.get_image()
+                if result == OK:
                     break
-                elif i == NO_FINGER:
+                elif result == NOFINGER:
                     time.sleep(0.5)
-                elif i == finger.IMAGEFAIL:
+                elif result == IMAGEFAIL:
                     return jsonify({"status": "error", "message": "Imaging error"}), 500
                 else:
-                    return jsonify({"status": "error", "message": "Unknown error capturing image"}), 500
+                    return jsonify({"status": "error", "message": "Unknown image error"}), 500
 
-            logger.info("Templating image...")
             if finger.image_2_tz(img_num) != OK:
-                return jsonify({"status": "error", "message": f"Templating failed for image {img_num}"}), 500
+                return jsonify({"status": "error", "message": f"Templating failed at step {img_num}"}), 500
 
             if img_num == 1:
-                logger.info("Remove finger")
-                time.sleep(1)
-                while finger.get_image() != NO_FINGER:
+                logger.info("Remove finger...")
+                while finger.get_image() != NOFINGER:
                     time.sleep(0.5)
 
-        logger.info("Creating model...")
         if finger.create_model() != OK:
-            return jsonify({"status": "error", "message": "Model creation failed. Fingerprints did not match"}), 500
+            return jsonify({"status": "error", "message": "Fingerprints did not match"}), 500
 
-        # Find first available ID
-        used_ids = finger.templates
-        for i in range(1, 128):
-            if i not in used_ids:
-                position = i
-                break
-        else:
-            return jsonify({"status": "error", "message": "No empty storage slot found"}), 500
+        used_ids = finger.templates or []
+        position = next((i for i in range(1, 128) if i not in used_ids), None)
+        if position is None:
+            return jsonify({"status": "error", "message": "No available fingerprint slots"}), 500
 
-        logger.info("Storing model at ID %d...", position)
         if finger.store_model(position) != OK:
-            return jsonify({"status": "error", "message": "Failed to store fingerprint model"}), 500
+            return jsonify({"status": "error", "message": "Failed to store fingerprint"}), 500
 
         fingerprint_map[str(position)] = username
         save_fingerprint_map()
@@ -387,8 +373,9 @@ def enroll_fingerprint():
         })
 
     except Exception as e:
-        logger.error(f"Fingerprint enrollment error: {e}")
-        return jsonify({"status": "error", "message": "Internal server error"}), 500
+        logger.error("Enrollment error: %s", e)
+        return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+
 
 
 
@@ -484,8 +471,6 @@ def lock_door():
 
 @app.route('/verify_fingerprint', methods=['POST'])
 def verify_fingerprint():
-    import adafruit_fingerprint
-    from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
 
     OK = adafruit_fingerprint.OK
@@ -498,31 +483,30 @@ def verify_fingerprint():
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
 
-        logger.info("Waiting for valid finger...")
+        logger.info("Place finger to verify %s...", face_name)
 
         if finger.get_image() != OK:
-            return jsonify({"status": "error", "message": "Failed to read fingerprint"})
-
+            return jsonify({"status": "error", "message": "Failed to capture fingerprint"}), 400
         if finger.image_2_tz(1) != OK:
-            return jsonify({"status": "error", "message": "Image convert failed"})
-
+            return jsonify({"status": "error", "message": "Failed to convert image"}), 400
         if finger.finger_search() != OK:
-            return jsonify({"status": "error", "message": "Fingerprint not recognized"})
+            return jsonify({"status": "error", "message": "Fingerprint not recognized"}), 404
 
         fingerprint_id = str(finger.finger_id)
         matched_name = fingerprint_map.get(fingerprint_id)
 
         if matched_name != face_name:
-            logger.warning(f"Fingerprint mismatch: {matched_name} != {face_name}")
-            return jsonify({"status": "error", "message": "Fingerprint does not match recognized face"}), 403
+            logger.warning("Mismatch: expected %s, got %s", face_name, matched_name)
+            return jsonify({"status": "error", "message": "Fingerprint does not match face"}), 403
 
-        logger.info(f"Verified: {matched_name}")
+        logger.info("Verified fingerprint for %s", matched_name)
         Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
-        return jsonify({"status": "success", "message": "Verified and unlocked"})
+        return jsonify({"status": "success", "message": "Fingerprint verified"})
 
     except Exception as e:
-        logger.error(f"Verify error: {e}")
-        return jsonify({"status": "error", "message": "Internal error"}), 500
+        logger.error("Verification error: %s", e)
+        return jsonify({"status": "error", "message": "Verification failed"}), 500
+
 
 
 
