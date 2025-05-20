@@ -227,12 +227,13 @@ def detect_faces():
 
 
 def fingerprint_verification_loop():
-    global pending_verification
+    import adafruit_fingerprint
     from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
 
-    OK = Adafruit_Fingerprint.OK
+    OK = adafruit_fingerprint.OK
 
+    global pending_verification
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
@@ -281,6 +282,7 @@ def fingerprint_verification_loop():
             logger.warning(f"Fingerprint mismatch: expected {expected_name}, got {matched_name}")
 
 
+
 def send_push_notification(token, alert):
     message = {
         'to': token,
@@ -309,11 +311,12 @@ def auth_status():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
+    import adafruit_fingerprint
     from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
 
-    OK = Adafruit_Fingerprint.OK
-    NO_FINGER = Adafruit_Fingerprint.NO_FINGER
+    OK = adafruit_fingerprint.OK
+    NO_FINGER = adafruit_fingerprint.NO_FINGER
 
     username = request.form.get("name")
     if not username:
@@ -367,6 +370,7 @@ def enroll_fingerprint():
     except Exception as e:
         logger.error(f"Enroll error: {e}")
         return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+
 
 @app.route('/')
 def home():
@@ -460,10 +464,11 @@ def lock_door():
 
 @app.route('/verify_fingerprint', methods=['POST'])
 def verify_fingerprint():
+    import adafruit_fingerprint
     from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
 
-    OK = Adafruit_Fingerprint.OK
+    OK = adafruit_fingerprint.OK
 
     face_name = request.json.get("name")
     if not face_name:
@@ -498,6 +503,7 @@ def verify_fingerprint():
     except Exception as e:
         logger.error(f"Verify error: {e}")
         return jsonify({"status": "error", "message": "Internal error"}), 500
+
 
 
 @app.route('/register_face', methods=['POST'])
