@@ -311,12 +311,11 @@ def auth_status():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
-    from adafruit_fingerprint.adafruit_fingerprint import (
-        Adafruit_Fingerprint,
-        OK,
-        NO_FINGER
-    )
+    from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
+
+    OK = Adafruit_Fingerprint.OK
+    NO_FINGER = Adafruit_Fingerprint.NO_FINGER
 
     username = request.form.get("name")
     if not username:
@@ -370,15 +369,6 @@ def enroll_fingerprint():
     except Exception as e:
         logger.error(f"Enroll error: {e}")
         return jsonify({"status": "error", "message": "Enrollment failed"}), 500
-
-
-
-
-
-
-
-
-
 
 @app.route('/')
 def home():
