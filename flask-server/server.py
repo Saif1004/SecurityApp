@@ -324,53 +324,67 @@ def enroll_fingerprint():
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
+        NO_FINGER = finger.NO_FINGER
 
-        NO_FINGER = finger.NO_FINGER  # <-- FIXED: use attribute from instance
+        logger.info("Waiting to enroll fingerprint for %s", username)
 
-        logger.info("Waiting for finger to enroll...")
+        for img_num in [1, 2]:
+            if img_num == 1:
+                logger.info("Place finger on sensor...")
+            else:
+                logger.info("Place the same finger again...")
 
-        while finger.get_image() != OK:
-            pass
+            while True:
+                i = finger.get_image()
+                if i == OK:
+                    logger.info("Image taken")
+                    break
+                elif i == NO_FINGER:
+                    time.sleep(0.5)
+                elif i == finger.IMAGEFAIL:
+                    return jsonify({"status": "error", "message": "Imaging error"}), 500
+                else:
+                    return jsonify({"status": "error", "message": "Unknown error capturing image"}), 500
 
-        if finger.image_2_tz(1) != OK:
-            return jsonify({"status": "error", "message": "Image conversion failed"})
+            logger.info("Templating image...")
+            if finger.image_2_tz(img_num) != OK:
+                return jsonify({"status": "error", "message": f"Templating failed for image {img_num}"}), 500
 
-        logger.info("Remove finger...")
-        time.sleep(2)
+            if img_num == 1:
+                logger.info("Remove finger")
+                time.sleep(1)
+                while finger.get_image() != NO_FINGER:
+                    time.sleep(0.5)
 
-        while finger.get_image() != NO_FINGER:
-            pass
-
-        logger.info("Place same finger again...")
-
-        while finger.get_image() != OK:
-            pass
-
-        if finger.image_2_tz(2) != OK:
-            return jsonify({"status": "error", "message": "Second image conversion failed"})
-
+        logger.info("Creating model...")
         if finger.create_model() != OK:
-            return jsonify({"status": "error", "message": "Model creation failed"})
+            return jsonify({"status": "error", "message": "Model creation failed. Fingerprints did not match"}), 500
 
+        # Find first available ID
+        used_ids = finger.templates
         for i in range(1, 128):
-            if finger.load_model(i) != OK:
+            if i not in used_ids:
                 position = i
                 break
         else:
-            return jsonify({"status": "error", "message": "No empty slot found"})
+            return jsonify({"status": "error", "message": "No empty storage slot found"}), 500
 
+        logger.info("Storing model at ID %d...", position)
         if finger.store_model(position) != OK:
-            return jsonify({"status": "error", "message": "Store failed"})
+            return jsonify({"status": "error", "message": "Failed to store fingerprint model"}), 500
 
         fingerprint_map[str(position)] = username
         save_fingerprint_map()
 
-        logger.info(f"Fingerprint enrolled at ID {position} for {username}")
-        return jsonify({"status": "success", "message": f"Fingerprint enrolled for {username}", "fingerprint_id": position})
+        return jsonify({
+            "status": "success",
+            "message": f"Fingerprint enrolled for {username}",
+            "fingerprint_id": position
+        })
 
     except Exception as e:
-        logger.error(f"Enroll error: {e}")
-        return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+        logger.error(f"Fingerprint enrollment error: {e}")
+        return jsonify({"status": "error", "message": "Internal server error"}), 500
 
 
 
