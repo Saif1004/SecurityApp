@@ -311,8 +311,11 @@ def auth_status():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
-    from adafruit_fingerprint import Adafruit_Fingerprint
-    import adafruit_fingerprint  # For constants like OK, NO_FINGER
+    from adafruit_fingerprint.adafruit_fingerprint import (
+        Adafruit_Fingerprint,
+        OK,
+        NO_FINGER
+    )
     import serial
 
     username = request.form.get("name")
@@ -325,38 +328,37 @@ def enroll_fingerprint():
 
         logger.info("Waiting for finger to enroll...")
 
-        while finger.get_image() != adafruit_fingerprint.OK:
+        while finger.get_image() != OK:
             pass
 
-        if finger.image_2_tz(1) != adafruit_fingerprint.OK:
+        if finger.image_2_tz(1) != OK:
             return jsonify({"status": "error", "message": "Image conversion failed"})
 
         logger.info("Remove finger...")
         time.sleep(2)
 
-        while finger.get_image() != adafruit_fingerprint.NO_FINGER:
+        while finger.get_image() != NO_FINGER:
             pass
 
         logger.info("Place same finger again...")
 
-        while finger.get_image() != adafruit_fingerprint.OK:
+        while finger.get_image() != OK:
             pass
 
-        if finger.image_2_tz(2) != adafruit_fingerprint.OK:
+        if finger.image_2_tz(2) != OK:
             return jsonify({"status": "error", "message": "Second image conversion failed"})
 
-        if finger.create_model() != adafruit_fingerprint.OK:
+        if finger.create_model() != OK:
             return jsonify({"status": "error", "message": "Model creation failed"})
 
-        # Find next available ID slot
         for i in range(1, 128):
-            if finger.load_model(i) != adafruit_fingerprint.OK:
+            if finger.load_model(i) != OK:
                 position = i
                 break
         else:
             return jsonify({"status": "error", "message": "No empty slot found"})
 
-        if finger.store_model(position) != adafruit_fingerprint.OK:
+        if finger.store_model(position) != OK:
             return jsonify({"status": "error", "message": "Store failed"})
 
         fingerprint_map[str(position)] = username
@@ -368,6 +370,7 @@ def enroll_fingerprint():
     except Exception as e:
         logger.error(f"Enroll error: {e}")
         return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+
 
 
 
