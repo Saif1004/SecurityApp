@@ -128,6 +128,14 @@ export default function HomeScreen() {
       >
         <Ionicons name="add" size={28} color="#1D4ED8" />
       </TouchableOpacity>
+      <TouchableOpacity
+        onPress={() => router.push('/nav-screens/DeleteFingerprint')}
+        style={tw`absolute bottom-28 right-6 bg-white w-14 h-14 rounded-full items-center justify-center shadow-lg border border-gray-300`}
+>
+        <Ionicons name="finger-print" size={26} color="#DC2626" />
+      </TouchableOpacity>
+
+      
     </View>
   );
 }

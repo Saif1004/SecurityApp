@@ -374,8 +374,46 @@ def enroll_fingerprint():
     except Exception as e:
         logger.error("Enrollment error: %s", e)
         return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+    
+@app.route('/fingerprints', methods=['GET'])
+def list_fingerprints():
+    try:
+        import serial
+        from adafruit_fingerprint import Adafruit_Fingerprint
+
+        uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
+        finger = Adafruit_Fingerprint(uart)
+
+        if finger.read_templates() != adafruit_fingerprint.OK:
+            return jsonify({"status": "error", "message": "Failed to read templates"}), 500
+
+        fingerprints = []
+        for fid in finger.templates:
+            name = fingerprint_map.get(str(fid), "Unknown")
+            fingerprints.append({"id": str(fid), "name": name})
+
+        return jsonify({"status": "success", "fingerprints": fingerprints})
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
+@app.route('/delete_fingerprint/<fid>', methods=['DELETE'])
+def delete_fingerprint(fid):
+    try:
+        import serial
+        from adafruit_fingerprint import Adafruit_Fingerprint
+
+        uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
+        finger = Adafruit_Fingerprint(uart)
+
+        if finger.delete_model(int(fid)) == adafruit_fingerprint.OK:
+            fingerprint_map.pop(str(fid), None)
+            save_fingerprint_map()
+            return jsonify({"status": "success", "message": f"Fingerprint ID {fid} deleted"})
+        else:
+            return jsonify({"status": "error", "message": "Failed to delete fingerprint"}), 500
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
 @app.route('/')
