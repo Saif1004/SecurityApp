@@ -229,8 +229,9 @@ def detect_faces():
 def fingerprint_verification_loop():
     global pending_verification
     from adafruit_fingerprint import Adafruit_Fingerprint
-    import adafruit_fingerprint  # ✅ Required
     import serial
+
+    OK = Adafruit_Fingerprint.OK
 
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
@@ -261,11 +262,11 @@ def fingerprint_verification_loop():
                 pending_verification = None
             continue
 
-        if finger.get_image() != adafruit_fingerprint.OK:
+        if finger.get_image() != OK:
             continue
-        if finger.image_2_tz(1) != adafruit_fingerprint.OK:
+        if finger.image_2_tz(1) != OK:
             continue
-        if finger.finger_search() != adafruit_fingerprint.OK:
+        if finger.finger_search() != OK:
             continue
 
         fingerprint_id = str(finger.finger_id)
@@ -278,9 +279,6 @@ def fingerprint_verification_loop():
                 pending_verification = None
         else:
             logger.warning(f"Fingerprint mismatch: expected {expected_name}, got {matched_name}")
-
-
-
 
 
 def send_push_notification(token, alert):
@@ -463,8 +461,9 @@ def lock_door():
 @app.route('/verify_fingerprint', methods=['POST'])
 def verify_fingerprint():
     from adafruit_fingerprint import Adafruit_Fingerprint
-    import adafruit_fingerprint  # ✅ Import the module for constants
     import serial
+
+    OK = Adafruit_Fingerprint.OK
 
     face_name = request.json.get("name")
     if not face_name:
@@ -476,13 +475,13 @@ def verify_fingerprint():
 
         logger.info("Waiting for valid finger...")
 
-        if finger.get_image() != adafruit_fingerprint.OK:
+        if finger.get_image() != OK:
             return jsonify({"status": "error", "message": "Failed to read fingerprint"})
 
-        if finger.image_2_tz(1) != adafruit_fingerprint.OK:
+        if finger.image_2_tz(1) != OK:
             return jsonify({"status": "error", "message": "Image convert failed"})
 
-        if finger.finger_search() != adafruit_fingerprint.OK:
+        if finger.finger_search() != OK:
             return jsonify({"status": "error", "message": "Fingerprint not recognized"})
 
         fingerprint_id = str(finger.finger_id)
@@ -499,10 +498,6 @@ def verify_fingerprint():
     except Exception as e:
         logger.error(f"Verify error: {e}")
         return jsonify({"status": "error", "message": "Internal error"}), 500
-
-
-
-
 
 
 @app.route('/register_face', methods=['POST'])
