@@ -231,8 +231,6 @@ def detect_faces():
 
 
 def fingerprint_verification_loop():
-    import adafruit_fingerprint
-    from adafruit_fingerprint import Adafruit_Fingerprint
     import serial
 
     OK = adafruit_fingerprint.OK
