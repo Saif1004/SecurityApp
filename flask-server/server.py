@@ -228,12 +228,12 @@ def detect_faces():
 
 def fingerprint_verification_loop():
     global pending_verification
-    from adafruit_fingerprint import Adafruit_Fingerprint
+    from adafruit_fingerprint import Fingerprint
     import serial
 
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
-        finger = Adafruit_Fingerprint(uart)
+        finger = Fingerprint(uart)
     except Exception as e:
         logger.error(f"Fingerprint sensor init failed: {e}")
         return
@@ -262,11 +262,11 @@ def fingerprint_verification_loop():
             continue
 
         # 🔍 Fingerprint capture & match logic
-        if finger.get_image() != Adafruit_Fingerprint.OK:
+        if finger.get_image() != Fingerprint.OK:
             continue
-        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+        if finger.image_2_tz(1) != Fingerprint.OK:
             continue
-        if finger.finger_search() != Adafruit_Fingerprint.OK:
+        if finger.finger_search() != Fingerprint.OK:
             continue
 
         fingerprint_id = str(finger.finger_id)
@@ -309,7 +309,7 @@ def auth_status():
 
 @app.route('/enroll_fingerprint', methods=['POST'])
 def enroll_fingerprint():
-    from adafruit_fingerprint import Adafruit_Fingerprint
+    from adafruit_fingerprint import Fingerprint
     import serial
 
     username = request.form.get("name")
@@ -318,7 +318,7 @@ def enroll_fingerprint():
 
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
-        finger = Adafruit_Fingerprint(uart)
+        finger = Fingerprint(uart)
     except Exception as e:
         logger.error(f"Sensor init failed: {e}")
         return jsonify({"status": "error", "message": "Sensor error"}), 500
@@ -327,7 +327,7 @@ def enroll_fingerprint():
         logger.info(prompt)
         start_time = time.time()
         while time.time() - start_time < timeout:
-            if finger.get_image() == Adafruit_Fingerprint.OK:
+            if finger.get_image() == Fingerprint.OK:
                 return True
             time.sleep(0.5)
         return False
@@ -337,12 +337,12 @@ def enroll_fingerprint():
     if not wait_for_finger("Place finger"):
         return jsonify({"status": "error", "message": "Timeout: No finger detected"})
 
-    if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+    if finger.image_2_tz(1) != Fingerprint.OK:
         return jsonify({"status": "error", "message": "Failed to convert image"})
 
     logger.info("Remove finger...")
     time.sleep(2)
-    while finger.get_image() != Adafruit_Fingerprint.NO_FINGER:
+    while finger.get_image() != Fingerprint.NO_FINGER:
         time.sleep(0.5)
 
     logger.info("Place same finger again...")
@@ -350,21 +350,21 @@ def enroll_fingerprint():
     if not wait_for_finger("Place same finger again"):
         return jsonify({"status": "error", "message": "Timeout on second scan"})
 
-    if finger.image_2_tz(2) != Adafruit_Fingerprint.OK:
+    if finger.image_2_tz(2) != Fingerprint.OK:
         return jsonify({"status": "error", "message": "Second image conversion failed"})
 
-    if finger.create_model() != Adafruit_Fingerprint.OK:
+    if finger.create_model() != Fingerprint.OK:
         return jsonify({"status": "error", "message": "Model creation failed"})
 
     # Find empty slot
     for i in range(1, 128):
-        if finger.load_model(i) != Adafruit_Fingerprint.OK:
+        if finger.load_model(i) != Fingerprint.OK:
             position = i
             break
     else:
         return jsonify({"status": "error", "message": "No empty slot found"})
 
-    if finger.store_model(position) != Adafruit_Fingerprint.OK:
+    if finger.store_model(position) != Fingerprint.OK:
         return jsonify({"status": "error", "message": "Store failed"})
 
     fingerprint_map[str(position)] = username
@@ -469,7 +469,7 @@ def lock_door():
 
 @app.route('/verify_fingerprint', methods=['POST'])
 def verify_fingerprint():
-    from adafruit_fingerprint import Adafruit_Fingerprint
+    from adafruit_fingerprint import Fingerprint
     import serial
 
     face_name = request.json.get("name")
@@ -478,17 +478,16 @@ def verify_fingerprint():
 
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
-        finger = Adafruit_Fingerprint(uart)
-
+        finger = Fingerprint(uart)
         logger.info("Waiting for valid finger...")
 
-        if finger.get_image() != Adafruit_Fingerprint.OK:
+        if finger.get_image() != Fingerprint.OK:
             return jsonify({"status": "error", "message": "Failed to read fingerprint"})
 
-        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
+        if finger.image_2_tz(1) != Fingerprint.OK:
             return jsonify({"status": "error", "message": "Image convert failed"})
 
-        if finger.finger_search() != Adafruit_Fingerprint.OK:
+        if finger.finger_search() != Fingerprint.OK:
             return jsonify({"status": "error", "message": "Fingerprint not recognized"})
 
         fingerprint_id = str(finger.finger_id)
