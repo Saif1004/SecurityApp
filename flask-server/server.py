@@ -376,6 +376,7 @@ def enroll_fingerprint():
 
 
 
+
 @app.route('/')
 def home():
     return 'Face & Motion Detection Server Running'
@@ -504,6 +505,7 @@ def verify_fingerprint():
     except Exception as e:
         logger.error(f"Verify error: {e}")
         return jsonify({"status": "error", "message": "Internal error"}), 500
+
 
 
 
