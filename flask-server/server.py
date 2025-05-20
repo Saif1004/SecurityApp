@@ -14,6 +14,10 @@ from collections import deque
 from imutils import paths
 import logging
 import json
+import adafruit_fingerprint
+
+print("Fingerprint module path:", adafruit_fingerprint.__file__)
+
 
 FINGERPRINT_MAP_FILE = "fingerprint_map.json"
 fingerprint_map = {}
