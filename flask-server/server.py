@@ -262,11 +262,11 @@ def fingerprint_verification_loop():
             continue
 
         # 🔍 Fingerprint capture & match
-        if finger.get_image() != finger.OK:
+        if finger.get_image() != Adafruit_Fingerprint.OK:
             continue
-        if finger.image_2_tz(1) != finger.OK:
+        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
             continue
-        if finger.finger_search() != finger.OK:
+        if finger.finger_search() != Adafruit_Fingerprint.OK:
             continue
 
         fingerprint_id = str(finger.finger_id)
@@ -279,6 +279,7 @@ def fingerprint_verification_loop():
                 pending_verification = None
         else:
             logger.warning(f"Fingerprint mismatch: expected {expected_name}, got {matched_name}")
+
 
 
 
@@ -323,49 +324,54 @@ def enroll_fingerprint():
 
         logger.info("Waiting for finger to enroll...")
 
-        while finger.get_image() != finger.OK:
+        while finger.get_image() != Adafruit_Fingerprint.OK:
             pass
 
-        if finger.image_2_tz(1) != finger.OK:
+        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
             return jsonify({"status": "error", "message": "Image conversion failed"})
 
         logger.info("Remove finger...")
         time.sleep(2)
 
-        while finger.get_image() != finger.NO_FINGER:
+        while finger.get_image() != Adafruit_Fingerprint.NO_FINGER:
             pass
 
         logger.info("Place same finger again...")
 
-        while finger.get_image() != finger.OK:
+        while finger.get_image() != Adafruit_Fingerprint.OK:
             pass
 
-        if finger.image_2_tz(2) != finger.OK:
+        if finger.image_2_tz(2) != Adafruit_Fingerprint.OK:
             return jsonify({"status": "error", "message": "Second image conversion failed"})
 
-        if finger.create_model() != finger.OK:
+        if finger.create_model() != Adafruit_Fingerprint.OK:
             return jsonify({"status": "error", "message": "Model creation failed"})
 
         # Find empty slot
         for i in range(1, 128):
-            if finger.load_model(i) != finger.OK:
+            if finger.load_model(i) != Adafruit_Fingerprint.OK:
                 position = i
                 break
         else:
             return jsonify({"status": "error", "message": "No empty slot found"})
 
-        if finger.store_model(position) != finger.OK:
+        if finger.store_model(position) != Adafruit_Fingerprint.OK:
             return jsonify({"status": "error", "message": "Store failed"})
 
         fingerprint_map[str(position)] = username
         save_fingerprint_map()
 
         logger.info(f"Fingerprint enrolled at ID {position} for {username}")
-        return jsonify({"status": "success", "message": f"Fingerprint enrolled for {username}", "fingerprint_id": position})
+        return jsonify({
+            "status": "success",
+            "message": f"Fingerprint enrolled for {username}",
+            "fingerprint_id": position
+        })
 
     except Exception as e:
         logger.error(f"Enroll error: {e}")
         return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+
 
 
 
@@ -476,13 +482,13 @@ def verify_fingerprint():
 
         logger.info("Waiting for valid finger...")
 
-        if finger.get_image() != finger.OK:
+        if finger.get_image() != Adafruit_Fingerprint.OK:
             return jsonify({"status": "error", "message": "Failed to read fingerprint"})
 
-        if finger.image_2_tz(1) != finger.OK:
+        if finger.image_2_tz(1) != Adafruit_Fingerprint.OK:
             return jsonify({"status": "error", "message": "Image convert failed"})
 
-        if finger.finger_search() != finger.OK:
+        if finger.finger_search() != Adafruit_Fingerprint.OK:
             return jsonify({"status": "error", "message": "Fingerprint not recognized"})
 
         fingerprint_id = str(finger.finger_id)
@@ -490,7 +496,10 @@ def verify_fingerprint():
 
         if matched_name != face_name:
             logger.warning(f"Fingerprint mismatch: {matched_name} != {face_name}")
-            return jsonify({"status": "error", "message": "Fingerprint does not match recognized face"}), 403
+            return jsonify({
+                "status": "error",
+                "message": "Fingerprint does not match recognized face"
+            }), 403
 
         logger.info(f"Verified: {matched_name}")
         Thread(target=unlock_lock_for_seconds, args=(5,), daemon=True).start()
@@ -499,6 +508,7 @@ def verify_fingerprint():
     except Exception as e:
         logger.error(f"Verify error: {e}")
         return jsonify({"status": "error", "message": "Internal error"}), 500
+
 
 
 
