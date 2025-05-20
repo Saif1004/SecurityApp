@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Alert, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useTheme } from '../ThemeProvider';
+import { useTheme } from '@/app/nav-screens/ThemeProvider';
 import tw from 'twrnc';
 
 export default function DeleteFingerprint() {
