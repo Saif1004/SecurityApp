@@ -15,6 +15,7 @@ from imutils import paths
 import logging
 import json
 import adafruit_fingerprint
+from adafruit_fingerprint import Adafruit_Fingerprint
 
 print("Fingerprint module path:", adafruit_fingerprint.__file__)
 
