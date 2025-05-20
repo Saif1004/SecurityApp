@@ -316,7 +316,6 @@ def enroll_fingerprint():
     import serial
 
     OK = adafruit_fingerprint.OK
-    NO_FINGER = adafruit_fingerprint.NO_FINGER
 
     username = request.form.get("name")
     if not username:
@@ -325,6 +324,8 @@ def enroll_fingerprint():
     try:
         uart = serial.Serial("/dev/ttyAMA0", baudrate=57600, timeout=1)
         finger = Adafruit_Fingerprint(uart)
+
+        NO_FINGER = finger.NO_FINGER  # <-- FIXED: use attribute from instance
 
         logger.info("Waiting for finger to enroll...")
 
@@ -370,6 +371,7 @@ def enroll_fingerprint():
     except Exception as e:
         logger.error(f"Enroll error: {e}")
         return jsonify({"status": "error", "message": "Enrollment failed"}), 500
+
 
 
 @app.route('/')
